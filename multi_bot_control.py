@@ -29,13 +29,13 @@ heart_threshold = 50
 heart_threshold_2 = 50
 last_drop_msg_id = ""
 acc_names = [
-    "fiu","fiuthuhai","fiuthuba","fiuthubay","songoku","saitama"
+    "fiu","songohan","fiuthuhai","fiuthuba","fiuthubay","songoku","saitama"
 ]
 
 spam_enabled = False
 spam_message = ""
 spam_delay = 10  # thời gian vòng lặp spam (giây)
-spam_channel_id = "1388802151723302912"
+spam_channel_id = "1389525697084526592"
 
 # Auto Work variables
 auto_work_enabled = False
