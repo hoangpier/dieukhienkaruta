@@ -38,7 +38,7 @@ acc_names = [
 spam_enabled = False
 spam_message = ""
 spam_delay = 10
-spam_channel_id = "1388802151723302912"
+spam_channel_id = "1389525697084526592"
 
 auto_work_enabled = False
 work_channel_id = "1390851619016671246"
