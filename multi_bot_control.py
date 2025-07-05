@@ -1,4 +1,4 @@
-# multi_bot_control_stable.py
+# multi_bot_control_final_fix.py
 import discum
 import threading
 import time
@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# --- CẤU HÌNH (Giữ nguyên) ---
+# --- CẤU HÌNH ---
 main_token = os.getenv("MAIN_TOKEN")
 main_token_2 = os.getenv("MAIN_TOKEN_2")
 tokens = os.getenv("TOKENS").split(",") if os.getenv("TOKENS") else []
@@ -22,7 +22,7 @@ ktb_channel_id = "1389525255269384252"
 karuta_id = "646937666251915264"
 karibbit_id = "1274445226064220273"
 
-# --- BIẾN TRẠNG THÁI (Giữ nguyên) ---
+# --- BIẾN TRẠNG THÁI ---
 bots = []
 main_bot = None
 main_bot_2 = None
@@ -47,8 +47,7 @@ work_delay_after_all = 44100
 
 bots_lock = threading.Lock()
 
-# --- CÁC HÀM (reboot_bot, create_bot, run_work_bot, v.v... được giữ nguyên) ---
-# ... (Toàn bộ các hàm của bạn từ reboot_bot đến auto_work_loop không thay đổi) ...
+# ... (Toàn bộ các hàm Python từ reboot_bot đến auto_work_loop không thay đổi) ...
 def reboot_bot(target_id):
     """Khởi động lại một bot dựa trên ID định danh của nó (vd: 'main_1', 'sub_2')."""
     global main_bot, main_bot_2, bots
@@ -385,6 +384,8 @@ def auto_work_loop():
             time.sleep(10)
 
 app = Flask(__name__)
+
+# === SỬA LỖI KEYERROR: Gấp đôi các dấu ngoặc nhọn trong CSS ===
 HTML = """
 <!DOCTYPE html>
 <html lang="vi">
@@ -396,21 +397,21 @@ HTML = """
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         /* Global Styles */
-        * {
+        * {{
             box-sizing: border-box;
-        }
+        }}
 
-        body {
+        body {{
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
             min-height: 100vh;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             color: #ffffff;
             margin: 0;
             padding: 20px 0;
-        }
+        }}
 
         /* Header Styles */
-        .header-section {
+        .header-section {{
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
             border-radius: 20px;
@@ -418,9 +419,9 @@ HTML = """
             margin-bottom: 2rem;
             border: 1px solid rgba(255, 255, 255, 0.1);
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-        }
+        }}
 
-        .header-section h1 {
+        .header-section h1 {{
             font-size: 2.5rem;
             font-weight: 700;
             background: linear-gradient(45deg, #00d4ff, #ff9500);
@@ -429,16 +430,16 @@ HTML = """
             background-clip: text;
             margin-bottom: 0.5rem;
             text-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
-        }
+        }}
 
-        .header-section p {
+        .header-section p {{
             font-size: 1.1rem;
             color: #b0b0b0;
             margin-bottom: 0;
-        }
+        }}
 
         /* Control Card Styles */
-        .control-card {
+        .control-card {{
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
             border-radius: 20px;
@@ -447,34 +448,34 @@ HTML = """
             transition: all 0.3s ease;
             overflow: hidden;
             margin-bottom: 2rem;
-        }
+        }}
 
-        .control-card:hover {
+        .control-card:hover {{
             transform: translateY(-5px);
             box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
             border-color: rgba(0, 212, 255, 0.3);
-        }
+        }}
 
-        .control-card .card-header {
+        .control-card .card-header {{
             background: linear-gradient(45deg, rgba(0, 212, 255, 0.2), rgba(255, 149, 0, 0.2));
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             padding: 1.5rem;
             border-radius: 20px 20px 0 0;
-        }
+        }}
 
-        .control-card .card-header h5 {
+        .control-card .card-header h5 {{
             color: #ffffff;
             font-weight: 600;
             margin: 0;
             text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-        }
+        }}
 
-        .control-card .card-body {
+        .control-card .card-body {{
             padding: 1.5rem;
-        }
+        }}
 
         /* Form Styles */
-        .form-control {
+        .form-control {{
             background: rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 12px;
@@ -482,20 +483,20 @@ HTML = """
             padding: 12px 16px;
             font-size: 1rem;
             transition: all 0.3s ease;
-        }
+        }}
 
-        .form-control:focus {
+        .form-control:focus {{
             background: rgba(255, 255, 255, 0.15);
             border-color: #00d4ff;
             box-shadow: 0 0 0 0.2rem rgba(0, 212, 255, 0.25);
             color: #ffffff;
-        }
+        }}
 
-        .form-control::placeholder {
+        .form-control::placeholder {{
             color: #b0b0b0;
-        }
+        }}
 
-        .form-select {
+        .form-select {{
             background: rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 12px;
@@ -503,35 +504,35 @@ HTML = """
             padding: 12px 16px;
             font-size: 1rem;
             transition: all 0.3s ease;
-        }
+        }}
 
-        .form-select:focus {
+        .form-select:focus {{
             background: rgba(255, 255, 255, 0.15);
             border-color: #00d4ff;
             box-shadow: 0 0 0 0.2rem rgba(0, 212, 255, 0.25);
             color: #ffffff;
-        }
+        }}
 
-        .form-select option {
+        .form-select option {{
             background: #1a1a2e;
             color: #ffffff;
-        }
+        }}
 
-        .form-label {
+        .form-label {{
             color: #ffffff;
             font-weight: 500;
             margin-bottom: 0.5rem;
-        }
+        }}
 
-        .input-group-text {
+        .input-group-text {{
             background: rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.2);
             color: #ffffff;
             border-radius: 12px 0 0 12px;
-        }
+        }}
 
         /* Button Styles */
-        .btn {
+        .btn {{
             border-radius: 12px;
             padding: 12px 24px;
             font-weight: 500;
@@ -542,9 +543,9 @@ HTML = """
             border: none;
             position: relative;
             overflow: hidden;
-        }
+        }}
 
-        .btn::before {
+        .btn::before {{
             content: '';
             position: absolute;
             top: 0;
@@ -553,68 +554,68 @@ HTML = """
             height: 100%;
             background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
             transition: left 0.5s ease;
-        }
+        }}
 
-        .btn:hover::before {
+        .btn:hover::before {{
             left: 100%;
-        }
+        }}
 
-        .btn-primary {
+        .btn-primary {{
             background: linear-gradient(45deg, #00d4ff, #0099cc);
             color: #ffffff;
             box-shadow: 0 4px 15px rgba(0, 212, 255, 0.4);
-        }
+        }}
 
-        .btn-primary:hover {
+        .btn-primary:hover {{
             background: linear-gradient(45deg, #0099cc, #00d4ff);
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(0, 212, 255, 0.6);
-        }
+        }}
         
-        .btn-warning {
+        .btn-warning {{
             background: linear-gradient(45deg, #ffc107, #ff9800);
             color: #1a1a2e;
             box-shadow: 0 4px 15px rgba(255, 193, 7, 0.4);
-        }
+        }}
 
-        .btn-warning:hover {
+        .btn-warning:hover {{
             background: linear-gradient(45deg, #ff9800, #ffc107);
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(255, 193, 7, 0.6);
-        }
+        }}
 
-        .btn-success {
+        .btn-success {{
             background: linear-gradient(45deg, #28a745, #20c997);
             color: #ffffff;
             box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
-        }
+        }}
 
-        .btn-success:hover {
+        .btn-success:hover {{
             background: linear-gradient(45deg, #20c997, #28a745);
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(40, 167, 69, 0.6);
-        }
+        }}
 
-        .btn-danger {
+        .btn-danger {{
             background: linear-gradient(45deg, #dc3545, #e83e8c);
             color: #ffffff;
             box-shadow: 0 4px 15px rgba(220, 53, 69, 0.4);
-        }
+        }}
 
-        .btn-danger:hover {
+        .btn-danger:hover {{
             background: linear-gradient(45deg, #e83e8c, #dc3545);
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(220, 53, 69, 0.6);
-        }
+        }}
 
         /* Status Indicators */
-        .status-indicator {
+        .status-indicator {{
             display: flex;
             align-items: center;
             margin-bottom: 1rem;
-        }
+        }}
 
-        .status-badge {
+        .status-badge {{
             display: inline-flex;
             align-items: center;
             padding: 8px 16px;
@@ -624,96 +625,96 @@ HTML = """
             text-transform: uppercase;
             letter-spacing: 0.5px;
             transition: all 0.3s ease;
-        }
+        }}
 
-        .status-active {
+        .status-active {{
             background: linear-gradient(45deg, #28a745, #20c997);
             color: #ffffff;
             box-shadow: 0 0 20px rgba(40, 167, 69, 0.3);
-        }
+        }}
 
-        .status-inactive {
+        .status-inactive {{
             background: linear-gradient(45deg, #dc3545, #e83e8c);
             color: #ffffff;
             box-shadow: 0 0 20px rgba(220, 53, 69, 0.3);
-        }
+        }}
 
         /* Alert Styles */
-        .alert {
+        .alert {{
             background: rgba(40, 167, 69, 0.2);
             border: 1px solid rgba(40, 167, 69, 0.3);
             border-radius: 12px;
             color: #ffffff;
             backdrop-filter: blur(10px);
             margin-bottom: 1rem;
-        }
+        }}
 
-        .alert-success {
+        .alert-success {{
             background: rgba(40, 167, 69, 0.2);
             border-color: rgba(40, 167, 69, 0.3);
-        }
+        }}
 
         /* Animation */
-        @keyframes fadeInUp {
-            from {
+        @keyframes fadeInUp {{
+            from {{
                 opacity: 0;
                 transform: translateY(30px);
-            }
-            to {
+            }}
+            to {{
                 opacity: 1;
                 transform: translateY(0);
-            }
-        }
+            }}
+        }}
 
-        .control-card {
+        .control-card {{
             animation: fadeInUp 0.6s ease-out;
-        }
+        }}
 
-        .quick-commands {
+        .quick-commands {{
             margin-top: 1.5rem;
             padding-top: 1.5rem;
             border-top: 1px solid rgba(255, 255, 255, 0.1);
-        }
+        }}
 
-        .quick-commands h6 {
+        .quick-commands h6 {{
             color: #ffffff;
             font-weight: 600;
             margin-bottom: 1rem;
-        }
+        }}
 
-        .heart-threshold {
+        .heart-threshold {{
             margin-top: 1.5rem;
             padding-top: 1.5rem;
             border-top: 1px solid rgba(255, 255, 255, 0.1);
-        }
+        }}
 
-        .heart-threshold h6 {
+        .heart-threshold h6 {{
             color: #ffffff;
             font-weight: 600;
             margin-bottom: 1rem;
-        }
+        }}
 
         /* Responsive Design */
-        @media (max-width: 768px) {
-            .header-section {
+        @media (max-width: 768px) {{
+            .header-section {{
                 padding: 1.5rem;
                 margin-bottom: 1.5rem;
-            }
+            }}
             
-            .header-section h1 {
+            .header-section h1 {{
                 font-size: 2rem;
-            }
+            }}
             
             .control-card .card-header,
-            .control-card .card-body {
+            .control-card .card-body {{
                 padding: 1rem;
-            }
+            }}
             
-            .btn {
+            .btn {{
                 padding: 10px 20px;
                 font-size: 0.9rem;
-            }
-        }
+            }}
+        }}
     </style>
 </head>
 <body>
@@ -1064,12 +1065,10 @@ HTML = """
 
 @app.route("/", methods=["GET", "POST"])
 def index():
-    # === PHẦN SỬA ĐỔI: Thêm reboot_target vào global và xử lý ===
     global auto_grab_enabled, auto_grab_enabled_2, spam_enabled, spam_message, spam_delay, heart_threshold, heart_threshold_2, auto_work_enabled
     msg_status = ""
 
     if request.method == "POST":
-        # ... (Toàn bộ các form xử lý cũ của bạn được giữ nguyên) ...
         msg = request.form.get("message")
         quickmsg = request.form.get("quickmsg")
         toggle = request.form.get("toggle")
@@ -1081,7 +1080,7 @@ def index():
         heart_threshold_form = request.form.get("heart_threshold")
         heart_threshold_2_form = request.form.get("heart_threshold_2")
         auto_work_toggle = request.form.get("auto_work_toggle")
-        reboot_target = request.form.get("reboot_target") # Bắt sự kiện reboot
+        reboot_target = request.form.get("reboot_target")
 
         if msg:
             with bots_lock:
@@ -1166,7 +1165,6 @@ def index():
             auto_work_enabled = auto_work_toggle == "on"
             msg_status = f"Auto Work {'đã bật' if auto_work_enabled else 'đã tắt'}"
         
-        # Xử lý yêu cầu reboot
         if reboot_target:
             reboot_bot(reboot_target)
             msg_status = f"Đã gửi yêu cầu khởi động lại cho {reboot_target}!"
@@ -1176,7 +1174,6 @@ def index():
     else:
         alert_section = ""
 
-    # ... (Phần còn lại của hàm render giữ nguyên) ...
     auto_grab_status = "status-active" if auto_grab_enabled else "status-inactive"
     auto_grab_text = "Đang bật" if auto_grab_enabled else "Đang tắt"
     
@@ -1190,8 +1187,7 @@ def index():
     auto_work_text = "Đang bật" if auto_work_enabled else "Đang tắt"
 
     acc_options = "".join(f'<option value="{i}">{name}</option>' for i, name in enumerate(acc_names))
-
-    # === PHẦN MỚI: Tạo danh sách bot cho form reboot ===
+    
     reboot_options = ""
     if main_bot:
         reboot_options += '<option value="main_1">Acc Chính 1</option>'
@@ -1199,7 +1195,6 @@ def index():
         reboot_options += '<option value="main_2">Acc Chính 2</option>'
     for i, name in enumerate(acc_names):
         reboot_options += f'<option value="sub_{i}">Acc Phụ {i+1} ({name})</option>'
-
 
     return render_template_string(HTML.format(
         alert_section=alert_section,
@@ -1216,14 +1211,14 @@ def index():
         spam_message=spam_message,
         spam_delay=spam_delay,
         acc_options=acc_options,
-        reboot_options=reboot_options # Truyền danh sách vào HTML
+        reboot_options=reboot_options
     ))
 
 def spam_loop():
     global spam_enabled, spam_message, spam_delay
     while True:
         if spam_enabled and spam_message:
-            with bots_lock: # Dùng lock để truy cập an toàn
+            with bots_lock:
                 bots_to_spam = bots.copy()
             for idx, bot in enumerate(bots_to_spam):
                 try:
@@ -1235,20 +1230,15 @@ def spam_loop():
         time.sleep(spam_delay)
 
 def keep_alive():
-    # ... (giữ nguyên) ...
     while True:
         try:
             if main_bot:
-                # Gửi tin nhắn để giữ bot hoạt động
                 pass
             time.sleep(random.randint(60, 120))
         except:
             pass
             
 if __name__ == "__main__":
-    # <<< PHẦN SỬA ĐỔI: Di chuyển toàn bộ logic khởi tạo vào đây >>>
-    
-    # 1. Khởi tạo các bot
     print("Đang khởi tạo các bot...")
     with bots_lock:
         if main_token:
@@ -1261,14 +1251,12 @@ if __name__ == "__main__":
                 bots.append(create_bot(token.strip(), is_main=False))
     print("Tất cả các bot đã được khởi tạo.")
 
-    # 2. Khởi tạo các luồng chạy nền
     print("Đang khởi tạo các luồng nền...")
     threading.Thread(target=spam_loop, daemon=True).start()
     threading.Thread(target=keep_alive, daemon=True).start()
     threading.Thread(target=auto_work_loop, daemon=True).start()
     print("Các luồng nền đã sẵn sàng.")
 
-    # 3. Khởi động server Flask
     port = int(os.environ.get("PORT", 8080))
     print(f"Khởi động Web Server tại cổng {port}...")
     app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
