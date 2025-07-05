@@ -1,3 +1,4 @@
+# multi_bot_control_reboot.py
 import discum
 import threading
 import time
@@ -10,6 +11,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# --- CẤU HÌNH ---
 main_token = os.getenv("MAIN_TOKEN")
 main_token_2 = os.getenv("MAIN_TOKEN_2")
 tokens = os.getenv("TOKENS").split(",") if os.getenv("TOKENS") else []
@@ -20,6 +22,7 @@ ktb_channel_id = "1389525255269384252"
 karuta_id = "646937666251915264"
 karibbit_id = "1274445226064220273"
 
+# --- BIẾN TRẠNG THÁI ---
 bots = []
 main_bot = None
 main_bot_2 = None
@@ -29,19 +32,68 @@ heart_threshold = 50
 heart_threshold_2 = 50
 last_drop_msg_id = ""
 acc_names = [
-    "fiu","songohan","fiuthuhai","fiuthuba","fiuthubay","songoku","saitama"
+    "fiu","fiuthuhai","fiuthuba","fiuthubay","songoku","saitama"
 ]
 
 spam_enabled = False
 spam_message = ""
-spam_delay = 10  # thời gian vòng lặp spam (giây)
-spam_channel_id = "1389525697084526592"
+spam_delay = 10
+spam_channel_id = "1388802151723302912"
 
-# Auto Work variables
 auto_work_enabled = False
-work_channel_id = "1389250541590413363"
+work_channel_id = "1390851619016671246"
 work_delay_between_acc = 10
 work_delay_after_all = 44100
+
+# === PHẦN MỚI: Thêm Lock để đảm bảo an toàn luồng ===
+# Rất quan trọng khi có nhiều luồng cùng truy cập và thay đổi danh sách bots
+bots_lock = threading.Lock()
+
+# === PHẦN MỚI: Hàm Reboot Bot ===
+def reboot_bot(target_id):
+    """Khởi động lại một bot dựa trên ID định danh của nó (vd: 'main_1', 'sub_2')."""
+    global main_bot, main_bot_2, bots
+
+    with bots_lock:
+        print(f"[Reboot] Nhận được yêu cầu reboot cho target: {target_id}")
+        if target_id == 'main_1' and main_bot:
+            print("[Reboot] Đang xử lý Acc Chính 1...")
+            try:
+                main_bot.gateway.close()
+            except Exception as e:
+                print(f"[Reboot] Lỗi khi đóng Acc Chính 1: {e}")
+            main_bot = create_bot(main_token, is_main=True)
+            print("[Reboot] Acc Chính 1 đã được khởi động lại.")
+
+        elif target_id == 'main_2' and main_bot_2:
+            print("[Reboot] Đang xử lý Acc Chính 2...")
+            try:
+                main_bot_2.gateway.close()
+            except Exception as e:
+                print(f"[Reboot] Lỗi khi đóng Acc Chính 2: {e}")
+            main_bot_2 = create_bot(main_token_2, is_main_2=True)
+            print("[Reboot] Acc Chính 2 đã được khởi động lại.")
+
+        elif target_id.startswith('sub_'):
+            try:
+                index = int(target_id.split('_')[1])
+                if 0 <= index < len(bots):
+                    print(f"[Reboot] Đang xử lý Acc Phụ {index}...")
+                    try:
+                        bots[index].gateway.close()
+                    except Exception as e:
+                        print(f"[Reboot] Lỗi khi đóng Acc Phụ {index}: {e}")
+                    
+                    token_to_reboot = tokens[index]
+                    bots[index] = create_bot(token_to_reboot.strip(), is_main=False)
+                    print(f"[Reboot] Acc Phụ {index} đã được khởi động lại.")
+                else:
+                    print(f"[Reboot] Index không hợp lệ: {index}")
+            except (ValueError, IndexError) as e:
+                print(f"[Reboot] Lỗi xử lý target Acc Phụ: {e}")
+        else:
+            print(f"[Reboot] Target không xác định: {target_id}")
+
 
 def create_bot(token, is_main=False, is_main_2=False):
     bot = discum.Client(token=token, log=False)
@@ -55,7 +107,7 @@ def create_bot(token, is_main=False, is_main_2=False):
                 print(f"Đã đăng nhập: {user_id} {bot_type}")
             except Exception as e:
                 print(f"Lỗi lấy user_id: {e}")
-
+    # ... (Toàn bộ phần code on_message của bạn được giữ nguyên) ...
     if is_main:
         @bot.gateway.command
         def on_message(resp):
@@ -121,7 +173,6 @@ def create_bot(token, is_main=False, is_main_2=False):
                                     break
 
                         threading.Thread(target=read_karibbit).start()
-
     if is_main_2:
         @bot.gateway.command
         def on_message(resp):
@@ -192,13 +243,7 @@ def create_bot(token, is_main=False, is_main_2=False):
     threading.Thread(target=bot.gateway.run, daemon=True).start()
     return bot
 
-main_bot = create_bot(main_token, is_main=True)
-main_bot_2 = create_bot(main_token_2, is_main_2=True) if main_token_2 else None
-
-for token in tokens:
-    if token.strip():
-        bots.append(create_bot(token.strip(), is_main=False))
-
+# ... (Toàn bộ phần code run_work_bot và auto_work_loop của bạn được giữ nguyên) ...
 # Auto Work Functions
 def run_work_bot(token, acc_index):
     bot = discum.Client(token=token, log={"console": False, "file": False})
@@ -327,7 +372,9 @@ def auto_work_loop():
     global auto_work_enabled
     while True:
         if auto_work_enabled:
-            for i, token in enumerate(tokens):
+            with bots_lock:
+                current_tokens = tokens.copy()
+            for i, token in enumerate(current_tokens):
                 if token.strip():
                     print(f"[Auto Work] Đang chạy acc {i+1}...")
                     run_work_bot(token.strip(), i+1)
@@ -341,6 +388,7 @@ def auto_work_loop():
 
 app = Flask(__name__)
 
+# === PHẦN SỬA ĐỔI: Thêm khối HTML cho công cụ Reboot ===
 HTML = """
 <!DOCTYPE html>
 <html lang="vi">
@@ -352,21 +400,21 @@ HTML = """
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         /* Global Styles */
-        * {{
+        * {
             box-sizing: border-box;
-        }}
+        }
 
-        body {{
+        body {
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
             min-height: 100vh;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             color: #ffffff;
             margin: 0;
             padding: 20px 0;
-        }}
+        }
 
         /* Header Styles */
-        .header-section {{
+        .header-section {
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
             border-radius: 20px;
@@ -374,9 +422,9 @@ HTML = """
             margin-bottom: 2rem;
             border: 1px solid rgba(255, 255, 255, 0.1);
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-        }}
+        }
 
-        .header-section h1 {{
+        .header-section h1 {
             font-size: 2.5rem;
             font-weight: 700;
             background: linear-gradient(45deg, #00d4ff, #ff9500);
@@ -385,16 +433,16 @@ HTML = """
             background-clip: text;
             margin-bottom: 0.5rem;
             text-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
-        }}
+        }
 
-        .header-section p {{
+        .header-section p {
             font-size: 1.1rem;
             color: #b0b0b0;
             margin-bottom: 0;
-        }}
+        }
 
         /* Control Card Styles */
-        .control-card {{
+        .control-card {
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
             border-radius: 20px;
@@ -403,34 +451,34 @@ HTML = """
             transition: all 0.3s ease;
             overflow: hidden;
             margin-bottom: 2rem;
-        }}
+        }
 
-        .control-card:hover {{
+        .control-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
             border-color: rgba(0, 212, 255, 0.3);
-        }}
+        }
 
-        .control-card .card-header {{
+        .control-card .card-header {
             background: linear-gradient(45deg, rgba(0, 212, 255, 0.2), rgba(255, 149, 0, 0.2));
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             padding: 1.5rem;
             border-radius: 20px 20px 0 0;
-        }}
+        }
 
-        .control-card .card-header h5 {{
+        .control-card .card-header h5 {
             color: #ffffff;
             font-weight: 600;
             margin: 0;
             text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-        }}
+        }
 
-        .control-card .card-body {{
+        .control-card .card-body {
             padding: 1.5rem;
-        }}
+        }
 
         /* Form Styles */
-        .form-control {{
+        .form-control {
             background: rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 12px;
@@ -438,20 +486,20 @@ HTML = """
             padding: 12px 16px;
             font-size: 1rem;
             transition: all 0.3s ease;
-        }}
+        }
 
-        .form-control:focus {{
+        .form-control:focus {
             background: rgba(255, 255, 255, 0.15);
             border-color: #00d4ff;
             box-shadow: 0 0 0 0.2rem rgba(0, 212, 255, 0.25);
             color: #ffffff;
-        }}
+        }
 
-        .form-control::placeholder {{
+        .form-control::placeholder {
             color: #b0b0b0;
-        }}
+        }
 
-        .form-select {{
+        .form-select {
             background: rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 12px;
@@ -459,35 +507,35 @@ HTML = """
             padding: 12px 16px;
             font-size: 1rem;
             transition: all 0.3s ease;
-        }}
+        }
 
-        .form-select:focus {{
+        .form-select:focus {
             background: rgba(255, 255, 255, 0.15);
             border-color: #00d4ff;
             box-shadow: 0 0 0 0.2rem rgba(0, 212, 255, 0.25);
             color: #ffffff;
-        }}
+        }
 
-        .form-select option {{
+        .form-select option {
             background: #1a1a2e;
             color: #ffffff;
-        }}
+        }
 
-        .form-label {{
+        .form-label {
             color: #ffffff;
             font-weight: 500;
             margin-bottom: 0.5rem;
-        }}
+        }
 
-        .input-group-text {{
+        .input-group-text {
             background: rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.2);
             color: #ffffff;
             border-radius: 12px 0 0 12px;
-        }}
+        }
 
         /* Button Styles */
-        .btn {{
+        .btn {
             border-radius: 12px;
             padding: 12px 24px;
             font-weight: 500;
@@ -498,9 +546,9 @@ HTML = """
             border: none;
             position: relative;
             overflow: hidden;
-        }}
+        }
 
-        .btn::before {{
+        .btn::before {
             content: '';
             position: absolute;
             top: 0;
@@ -509,56 +557,68 @@ HTML = """
             height: 100%;
             background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
             transition: left 0.5s ease;
-        }}
+        }
 
-        .btn:hover::before {{
+        .btn:hover::before {
             left: 100%;
-        }}
+        }
 
-        .btn-primary {{
+        .btn-primary {
             background: linear-gradient(45deg, #00d4ff, #0099cc);
             color: #ffffff;
             box-shadow: 0 4px 15px rgba(0, 212, 255, 0.4);
-        }}
+        }
 
-        .btn-primary:hover {{
+        .btn-primary:hover {
             background: linear-gradient(45deg, #0099cc, #00d4ff);
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(0, 212, 255, 0.6);
-        }}
+        }
+        
+        .btn-warning {
+            background: linear-gradient(45deg, #ffc107, #ff9800);
+            color: #1a1a2e;
+            box-shadow: 0 4px 15px rgba(255, 193, 7, 0.4);
+        }
 
-        .btn-success {{
+        .btn-warning:hover {
+            background: linear-gradient(45deg, #ff9800, #ffc107);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 193, 7, 0.6);
+        }
+
+        .btn-success {
             background: linear-gradient(45deg, #28a745, #20c997);
             color: #ffffff;
             box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
-        }}
+        }
 
-        .btn-success:hover {{
+        .btn-success:hover {
             background: linear-gradient(45deg, #20c997, #28a745);
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(40, 167, 69, 0.6);
-        }}
+        }
 
-        .btn-danger {{
+        .btn-danger {
             background: linear-gradient(45deg, #dc3545, #e83e8c);
             color: #ffffff;
             box-shadow: 0 4px 15px rgba(220, 53, 69, 0.4);
-        }}
+        }
 
-        .btn-danger:hover {{
+        .btn-danger:hover {
             background: linear-gradient(45deg, #e83e8c, #dc3545);
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(220, 53, 69, 0.6);
-        }}
+        }
 
         /* Status Indicators */
-        .status-indicator {{
+        .status-indicator {
             display: flex;
             align-items: center;
             margin-bottom: 1rem;
-        }}
+        }
 
-        .status-badge {{
+        .status-badge {
             display: inline-flex;
             align-items: center;
             padding: 8px 16px;
@@ -568,96 +628,96 @@ HTML = """
             text-transform: uppercase;
             letter-spacing: 0.5px;
             transition: all 0.3s ease;
-        }}
+        }
 
-        .status-active {{
+        .status-active {
             background: linear-gradient(45deg, #28a745, #20c997);
             color: #ffffff;
             box-shadow: 0 0 20px rgba(40, 167, 69, 0.3);
-        }}
+        }
 
-        .status-inactive {{
+        .status-inactive {
             background: linear-gradient(45deg, #dc3545, #e83e8c);
             color: #ffffff;
             box-shadow: 0 0 20px rgba(220, 53, 69, 0.3);
-        }}
+        }
 
         /* Alert Styles */
-        .alert {{
+        .alert {
             background: rgba(40, 167, 69, 0.2);
             border: 1px solid rgba(40, 167, 69, 0.3);
             border-radius: 12px;
             color: #ffffff;
             backdrop-filter: blur(10px);
             margin-bottom: 1rem;
-        }}
+        }
 
-        .alert-success {{
+        .alert-success {
             background: rgba(40, 167, 69, 0.2);
             border-color: rgba(40, 167, 69, 0.3);
-        }}
+        }
 
         /* Animation */
-        @keyframes fadeInUp {{
-            from {{
+        @keyframes fadeInUp {
+            from {
                 opacity: 0;
                 transform: translateY(30px);
-            }}
-            to {{
+            }
+            to {
                 opacity: 1;
                 transform: translateY(0);
-            }}
-        }}
+            }
+        }
 
-        .control-card {{
+        .control-card {
             animation: fadeInUp 0.6s ease-out;
-        }}
+        }
 
-        .quick-commands {{
+        .quick-commands {
             margin-top: 1.5rem;
             padding-top: 1.5rem;
             border-top: 1px solid rgba(255, 255, 255, 0.1);
-        }}
+        }
 
-        .quick-commands h6 {{
+        .quick-commands h6 {
             color: #ffffff;
             font-weight: 600;
             margin-bottom: 1rem;
-        }}
+        }
 
-        .heart-threshold {{
+        .heart-threshold {
             margin-top: 1.5rem;
             padding-top: 1.5rem;
             border-top: 1px solid rgba(255, 255, 255, 0.1);
-        }}
+        }
 
-        .heart-threshold h6 {{
+        .heart-threshold h6 {
             color: #ffffff;
             font-weight: 600;
             margin-bottom: 1rem;
-        }}
+        }
 
         /* Responsive Design */
-        @media (max-width: 768px) {{
-            .header-section {{
+        @media (max-width: 768px) {
+            .header-section {
                 padding: 1.5rem;
                 margin-bottom: 1.5rem;
-            }}
+            }
             
-            .header-section h1 {{
+            .header-section h1 {
                 font-size: 2rem;
-            }}
+            }
             
             .control-card .card-header,
-            .control-card .card-body {{
+            .control-card .card-body {
                 padding: 1rem;
-            }}
+            }
             
-            .btn {{
+            .btn {
                 padding: 10px 20px;
                 font-size: 0.9rem;
-            }}
-        }}
+            }
+        }
     </style>
 </head>
 <body>
@@ -677,7 +737,6 @@ HTML = """
         {alert_section}
 
         <div class="row g-4">
-            <!-- Manual Message Section -->
             <div class="col-lg-6">
                 <div class="control-card">
                     <div class="card-header">
@@ -725,7 +784,6 @@ HTML = """
                 </div>
             </div>
 
-            <!-- Auto Work Section -->
             <div class="col-lg-6">
                 <div class="control-card">
                     <div class="card-header">
@@ -763,7 +821,6 @@ HTML = """
                 </div>
             </div>
 
-            <!-- Auto Grab Section - Row with both accounts -->
             <div class="col-lg-6">
                 <div class="control-card">
                     <div class="card-header">
@@ -870,7 +927,6 @@ HTML = """
                 </div>
             </div>
 
-            <!-- Code Sending Section -->
             <div class="col-12">
                 <div class="control-card">
                     <div class="card-header">
@@ -922,7 +978,6 @@ HTML = """
                 </div>
             </div>
 
-            <!-- Spam Control Section -->
             <div class="col-12">
                 <div class="control-card">
                     <div class="card-header">
@@ -974,9 +1029,38 @@ HTML = """
                     </div>
                 </div>
             </div>
+            
+            <div class="col-12">
+                <div class="control-card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-sync-alt me-2"></i>
+                            Khởi động lại Bot (Reboot)
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST">
+                            <div class="input-group">
+                                <select name="reboot_target" class="form-select">
+                                    {reboot_options}
+                                </select>
+                                <button type="submit" class="btn btn-warning">
+                                    <i class="fas fa-power-off me-1"></i>Reboot Bot
+                                </button>
+                            </div>
+                        </form>
+                        <div class="mt-2">
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Dùng khi một bot bị "đơ" hoặc không hoạt động đúng.
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
@@ -984,10 +1068,12 @@ HTML = """
 
 @app.route("/", methods=["GET", "POST"])
 def index():
+    # === PHẦN SỬA ĐỔI: Thêm reboot_target vào global và xử lý ===
     global auto_grab_enabled, auto_grab_enabled_2, spam_enabled, spam_message, spam_delay, heart_threshold, heart_threshold_2, auto_work_enabled
     msg_status = ""
 
     if request.method == "POST":
+        # ... (Toàn bộ các form xử lý cũ của bạn được giữ nguyên) ...
         msg = request.form.get("message")
         quickmsg = request.form.get("quickmsg")
         toggle = request.form.get("toggle")
@@ -999,21 +1085,24 @@ def index():
         heart_threshold_form = request.form.get("heart_threshold")
         heart_threshold_2_form = request.form.get("heart_threshold_2")
         auto_work_toggle = request.form.get("auto_work_toggle")
+        reboot_target = request.form.get("reboot_target") # Bắt sự kiện reboot
 
         if msg:
-            for idx, bot in enumerate(bots):
-                try:
-                    threading.Timer(2 * idx, bot.sendMessage, args=(other_channel_id, msg)).start()
-                except Exception as e:
-                    print(f"Lỗi gửi tin nhắn: {e}")
+            with bots_lock:
+                for idx, bot in enumerate(bots):
+                    try:
+                        threading.Timer(2 * idx, bot.sendMessage, args=(other_channel_id, msg)).start()
+                    except Exception as e:
+                        print(f"Lỗi gửi tin nhắn: {e}")
             msg_status = "Đã gửi thủ công thành công!"
 
         if quickmsg:
-            for idx, bot in enumerate(bots):
-                try:
-                    threading.Timer(2 * idx, bot.sendMessage, args=(other_channel_id, quickmsg)).start()
-                except Exception as e:
-                    print(f"Lỗi gửi tin nhắn: {e}")
+            with bots_lock:
+                for idx, bot in enumerate(bots):
+                    try:
+                        threading.Timer(2 * idx, bot.sendMessage, args=(other_channel_id, quickmsg)).start()
+                    except Exception as e:
+                        print(f"Lỗi gửi tin nhắn: {e}")
             msg_status = f"Đã gửi lệnh {quickmsg} thành công!"
 
         if toggle:
@@ -1051,14 +1140,15 @@ def index():
                     codes_list = codes.split(",")
                     
                     if acc_idx < len(bots):
-                        for i, code in enumerate(codes_list):
-                            code = code.strip()
-                            if code:
-                                final_msg = f"{prefix} {code}" if prefix else code
-                                try:
-                                    threading.Timer(delay_val * i, bots[acc_idx].sendMessage, args=(other_channel_id, final_msg)).start()
-                                except Exception as e:
-                                    print(f"Lỗi gửi mã: {e}")
+                         with bots_lock:
+                            for i, code in enumerate(codes_list):
+                                code = code.strip()
+                                if code:
+                                    final_msg = f"{prefix} {code}" if prefix else code
+                                    try:
+                                        threading.Timer(delay_val * i, bots[acc_idx].sendMessage, args=(other_channel_id, final_msg)).start()
+                                    except Exception as e:
+                                        print(f"Lỗi gửi mã: {e}")
                 except Exception as e:
                     print(f"Lỗi xử lý codes: {e}")
 
@@ -1079,12 +1169,18 @@ def index():
         if auto_work_toggle:
             auto_work_enabled = auto_work_toggle == "on"
             msg_status = f"Auto Work {'đã bật' if auto_work_enabled else 'đã tắt'}"
+        
+        # Xử lý yêu cầu reboot
+        if reboot_target:
+            reboot_bot(reboot_target)
+            msg_status = f"Đã gửi yêu cầu khởi động lại cho {reboot_target}!"
 
     if msg_status:
         alert_section = f'<div class="row"><div class="col-12"><div class="alert alert-success">{msg_status}</div></div></div>'
     else:
         alert_section = ""
 
+    # ... (Phần còn lại của hàm render giữ nguyên) ...
     auto_grab_status = "status-active" if auto_grab_enabled else "status-inactive"
     auto_grab_text = "Đang bật" if auto_grab_enabled else "Đang tắt"
     
@@ -1098,6 +1194,16 @@ def index():
     auto_work_text = "Đang bật" if auto_work_enabled else "Đang tắt"
 
     acc_options = "".join(f'<option value="{i}">{name}</option>' for i, name in enumerate(acc_names))
+
+    # === PHẦN MỚI: Tạo danh sách bot cho form reboot ===
+    reboot_options = ""
+    if main_bot:
+        reboot_options += '<option value="main_1">Acc Chính 1</option>'
+    if main_bot_2:
+        reboot_options += '<option value="main_2">Acc Chính 2</option>'
+    for i, name in enumerate(acc_names):
+        reboot_options += f'<option value="sub_{i}">Acc Phụ {i+1} ({name})</option>'
+
 
     return render_template_string(HTML.format(
         alert_section=alert_section,
@@ -1113,14 +1219,17 @@ def index():
         heart_threshold_2=heart_threshold_2,
         spam_message=spam_message,
         spam_delay=spam_delay,
-        acc_options=acc_options
+        acc_options=acc_options,
+        reboot_options=reboot_options # Truyền danh sách vào HTML
     ))
 
 def spam_loop():
     global spam_enabled, spam_message, spam_delay
     while True:
         if spam_enabled and spam_message:
-            for idx, bot in enumerate(bots):
+            with bots_lock: # Dùng lock để truy cập an toàn
+                bots_to_spam = bots.copy()
+            for idx, bot in enumerate(bots_to_spam):
                 try:
                     bot.sendMessage(spam_channel_id, spam_message)
                     print(f"[{acc_names[idx]}] đã gửi: {spam_message}")
@@ -1130,6 +1239,7 @@ def spam_loop():
         time.sleep(spam_delay)
 
 def keep_alive():
+    # ... (giữ nguyên) ...
     while True:
         try:
             if main_bot:
@@ -1139,9 +1249,21 @@ def keep_alive():
         except:
             pass
 
+# === PHẦN SỬA ĐỔI: Khởi tạo bot ban đầu ===
+with bots_lock:
+    if main_token:
+        main_bot = create_bot(main_token, is_main=True)
+    if main_token_2:
+        main_bot_2 = create_bot(main_token_2, is_main_2=True)
+
+    for token in tokens:
+        if token.strip():
+            bots.append(create_bot(token.strip(), is_main=False))
+
+
 if __name__ == "__main__":
     threading.Thread(target=spam_loop, daemon=True).start()
     threading.Thread(target=keep_alive, daemon=True).start()
     threading.Thread(target=auto_work_loop, daemon=True).start()
-    port = int(os.environ.get("PORT", 8080))  # lấy PORT từ biến môi trường
-    app.run(host="0.0.0.0", port=port, debug=True)
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False) # Tắt debug và reloader để tránh lỗi đa luồng
