@@ -1,4 +1,4 @@
-# multi_bot_control_reboot.py
+# multi_bot_control_stable.py
 import discum
 import threading
 import time
@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# --- CẤU HÌNH ---
+# --- CẤU HÌNH (Giữ nguyên) ---
 main_token = os.getenv("MAIN_TOKEN")
 main_token_2 = os.getenv("MAIN_TOKEN_2")
 tokens = os.getenv("TOKENS").split(",") if os.getenv("TOKENS") else []
@@ -22,7 +22,7 @@ ktb_channel_id = "1389525255269384252"
 karuta_id = "646937666251915264"
 karibbit_id = "1274445226064220273"
 
-# --- BIẾN TRẠNG THÁI ---
+# --- BIẾN TRẠNG THÁI (Giữ nguyên) ---
 bots = []
 main_bot = None
 main_bot_2 = None
@@ -45,11 +45,10 @@ work_channel_id = "1390851619016671246"
 work_delay_between_acc = 10
 work_delay_after_all = 44100
 
-# === PHẦN MỚI: Thêm Lock để đảm bảo an toàn luồng ===
-# Rất quan trọng khi có nhiều luồng cùng truy cập và thay đổi danh sách bots
 bots_lock = threading.Lock()
 
-# === PHẦN MỚI: Hàm Reboot Bot ===
+# --- CÁC HÀM (reboot_bot, create_bot, run_work_bot, v.v... được giữ nguyên) ---
+# ... (Toàn bộ các hàm của bạn từ reboot_bot đến auto_work_loop không thay đổi) ...
 def reboot_bot(target_id):
     """Khởi động lại một bot dựa trên ID định danh của nó (vd: 'main_1', 'sub_2')."""
     global main_bot, main_bot_2, bots
@@ -243,7 +242,6 @@ def create_bot(token, is_main=False, is_main_2=False):
     threading.Thread(target=bot.gateway.run, daemon=True).start()
     return bot
 
-# ... (Toàn bộ phần code run_work_bot và auto_work_loop của bạn được giữ nguyên) ...
 # Auto Work Functions
 def run_work_bot(token, acc_index):
     bot = discum.Client(token=token, log={"console": False, "file": False})
@@ -387,8 +385,6 @@ def auto_work_loop():
             time.sleep(10)
 
 app = Flask(__name__)
-
-# === PHẦN SỬA ĐỔI: Thêm khối HTML cho công cụ Reboot ===
 HTML = """
 <!DOCTYPE html>
 <html lang="vi">
@@ -1248,22 +1244,31 @@ def keep_alive():
             time.sleep(random.randint(60, 120))
         except:
             pass
-
-# === PHẦN SỬA ĐỔI: Khởi tạo bot ban đầu ===
-with bots_lock:
-    if main_token:
-        main_bot = create_bot(main_token, is_main=True)
-    if main_token_2:
-        main_bot_2 = create_bot(main_token_2, is_main_2=True)
-
-    for token in tokens:
-        if token.strip():
-            bots.append(create_bot(token.strip(), is_main=False))
-
-
+            
 if __name__ == "__main__":
+    # <<< PHẦN SỬA ĐỔI: Di chuyển toàn bộ logic khởi tạo vào đây >>>
+    
+    # 1. Khởi tạo các bot
+    print("Đang khởi tạo các bot...")
+    with bots_lock:
+        if main_token:
+            main_bot = create_bot(main_token, is_main=True)
+        if main_token_2:
+            main_bot_2 = create_bot(main_token_2, is_main_2=True)
+
+        for token in tokens:
+            if token.strip():
+                bots.append(create_bot(token.strip(), is_main=False))
+    print("Tất cả các bot đã được khởi tạo.")
+
+    # 2. Khởi tạo các luồng chạy nền
+    print("Đang khởi tạo các luồng nền...")
     threading.Thread(target=spam_loop, daemon=True).start()
     threading.Thread(target=keep_alive, daemon=True).start()
     threading.Thread(target=auto_work_loop, daemon=True).start()
+    print("Các luồng nền đã sẵn sàng.")
+
+    # 3. Khởi động server Flask
     port = int(os.environ.get("PORT", 8080))
-    app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False) # Tắt debug và reloader để tránh lỗi đa luồng
+    print(f"Khởi động Web Server tại cổng {port}...")
+    app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
