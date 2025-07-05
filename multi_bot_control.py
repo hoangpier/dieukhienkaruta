@@ -1,4 +1,4 @@
-# multi_bot_control_all_spam.py
+# multi_bot_control_final.py
 import discum
 import threading
 import time
@@ -41,27 +41,62 @@ auto_reboot_stop_event = None
 bots_lock = threading.Lock()
 
 def reboot_bot(target_id):
+    """Khởi động lại một bot dựa trên ID định danh của nó."""
     global main_bot, main_bot_2, main_bot_3, bots
+
     with bots_lock:
         print(f"[Reboot] Nhận được yêu cầu reboot cho target: {target_id}")
+        
         if target_id == 'main_1' and main_bot:
-            print("[Reboot] Đang xử lý Acc Chính 1..."); try: main_bot.gateway.close(); except Exception as e: print(f"[Reboot] Lỗi khi đóng Acc Chính 1: {e}"); main_bot = create_bot(main_token, is_main=True); print("[Reboot] Acc Chính 1 đã được khởi động lại.")
+            print("[Reboot] Đang xử lý Acc Chính 1...")
+            try:
+                main_bot.gateway.close()
+            except Exception as e:
+                print(f"[Reboot] Lỗi khi đóng Acc Chính 1: {e}")
+            main_bot = create_bot(main_token, is_main=True)
+            print("[Reboot] Acc Chính 1 đã được khởi động lại.")
+
         elif target_id == 'main_2' and main_bot_2:
-            print("[Reboot] Đang xử lý Acc Chính 2..."); try: main_bot_2.gateway.close(); except Exception as e: print(f"[Reboot] Lỗi khi đóng Acc Chính 2: {e}"); main_bot_2 = create_bot(main_token_2, is_main_2=True); print("[Reboot] Acc Chính 2 đã được khởi động lại.")
+            print("[Reboot] Đang xử lý Acc Chính 2...")
+            try:
+                main_bot_2.gateway.close()
+            except Exception as e:
+                print(f"[Reboot] Lỗi khi đóng Acc Chính 2: {e}")
+            main_bot_2 = create_bot(main_token_2, is_main_2=True)
+            print("[Reboot] Acc Chính 2 đã được khởi động lại.")
+        
         elif target_id == 'main_3' and main_bot_3:
-            print("[Reboot] Đang xử lý Acc Chính 3..."); try: main_bot_3.gateway.close(); except Exception as e: print(f"[Reboot] Lỗi khi đóng Acc Chính 3: {e}"); main_bot_3 = create_bot(main_token_3, is_main_3=True); print("[Reboot] Acc Chính 3 đã được khởi động lại.")
+            print("[Reboot] Đang xử lý Acc Chính 3...")
+            try:
+                main_bot_3.gateway.close()
+            except Exception as e:
+                print(f"[Reboot] Lỗi khi đóng Acc Chính 3: {e}")
+            main_bot_3 = create_bot(main_token_3, is_main_3=True)
+            print("[Reboot] Acc Chính 3 đã được khởi động lại.")
+
         elif target_id.startswith('sub_'):
             try:
                 index = int(target_id.split('_')[1])
                 if 0 <= index < len(bots):
-                    print(f"[Reboot] Đang xử lý Acc Phụ {index}..."); try: bots[index].gateway.close(); except Exception as e: print(f"[Reboot] Lỗi khi đóng Acc Phụ {index}: {e}"); token_to_reboot = tokens[index]; bots[index] = create_bot(token_to_reboot.strip()); print(f"[Reboot] Acc Phụ {index} đã được khởi động lại.")
-                else: print(f"[Reboot] Index không hợp lệ: {index}")
-            except (ValueError, IndexError) as e: print(f"[Reboot] Lỗi xử lý target Acc Phụ: {e}")
+                    print(f"[Reboot] Đang xử lý Acc Phụ {index}...")
+                    try:
+                        bots[index].gateway.close()
+                    except Exception as e:
+                        print(f"[Reboot] Lỗi khi đóng Acc Phụ {index}: {e}")
+                    
+                    token_to_reboot = tokens[index]
+                    bots[index] = create_bot(token_to_reboot.strip())
+                    print(f"[Reboot] Acc Phụ {index} đã được khởi động lại.")
+                else:
+                    print(f"[Reboot] Index không hợp lệ: {index}")
+            except (ValueError, IndexError) as e:
+                print(f"[Reboot] Lỗi xử lý target Acc Phụ: {e}")
         else:
             print(f"[Reboot] Target không xác định: {target_id}")
 
 def create_bot(token, is_main=False, is_main_2=False, is_main_3=False):
     bot = discum.Client(token=token, log=False)
+
     @bot.gateway.command
     def on_ready(resp):
         if resp.event.ready:
@@ -71,157 +106,275 @@ def create_bot(token, is_main=False, is_main_2=False, is_main_3=False):
                 print(f"Đã đăng nhập: {user_id} {bot_type}")
             except Exception as e:
                 print(f"Lỗi lấy user_id: {e}")
+
     if is_main:
         @bot.gateway.command
         def on_message(resp):
             global auto_grab_enabled, heart_threshold, last_drop_msg_id
             if resp.event.message:
-                msg = resp.parsed.auto(); author = msg.get("author", {}).get("id"); content = msg.get("content", ""); channel = msg.get("channel_id"); mentions = msg.get("mentions", [])
-                if author == karuta_id and channel == main_channel_id and "is dropping" not in content and not mentions and auto_grab_enabled:
-                    print("\n[Bot 1] Phát hiện tự drop! Đọc tin nhắn Karibbit...\n"); last_drop_msg_id = msg["id"]
-                    def read_karibbit():
-                        time.sleep(0.5); messages = bot.getMessages(main_channel_id, num=5).json()
-                        for msg_inner in messages:
-                            if msg_inner.get("author", {}).get("id") == karibbit_id and "embeds" in msg_inner and len(msg_inner["embeds"]) > 0:
-                                desc = msg_inner["embeds"][0].get("description", ""); print(f"\n[Bot 1] ===== Tin nhắn Karibbit đọc được =====\n{desc}\n[Bot 1] ===== Kết thúc tin nhắn =====\n")
-                                lines = desc.split('\n'); heart_numbers = []
-                                for i, line in enumerate(lines[:3]):
-                                    matches = re.findall(r'`([^`]*)`', line)
-                                    if len(matches) >= 2 and matches[1].isdigit(): heart_numbers.append(int(matches[1])); print(f"[Bot 1] Dòng {i+1} số tim: {int(matches[1])}")
-                                    else: heart_numbers.append(0); print(f"[Bot 1] Dòng {i+1} không tìm thấy số tim, mặc định 0")
-                                if sum(heart_numbers) == 0: print("[Bot 1] Không có số tim nào, bỏ qua.\n")
-                                else:
-                                    max_num = max(heart_numbers)
-                                    if max_num < heart_threshold: print(f"[Bot 1] Số tim lớn nhất {max_num} < {heart_threshold}, không grab!\n")
+                msg = resp.parsed.auto()
+                author = msg.get("author", {}).get("id")
+                content = msg.get("content", "")
+                channel = msg.get("channel_id")
+                mentions = msg.get("mentions", [])
+                if author == karuta_id and channel == main_channel_id:
+                    if "is dropping" not in content and not mentions and auto_grab_enabled:
+                        print("\n[Bot 1] Phát hiện tự drop! Đọc tin nhắn Karibbit...\n")
+                        last_drop_msg_id = msg["id"]
+                        def read_karibbit():
+                            time.sleep(0.5)
+                            messages = bot.getMessages(main_channel_id, num=5).json()
+                            for msg_inner in messages:
+                                author_id = msg_inner.get("author", {}).get("id")
+                                if author_id == karibbit_id and "embeds" in msg_inner and len(msg_inner["embeds"]) > 0:
+                                    desc = msg_inner["embeds"][0].get("description", "")
+                                    print(f"\n[Bot 1] ===== Tin nhắn Karibbit đọc được =====\n{desc}\n[Bot 1] ===== Kết thúc tin nhắn =====\n")
+                                    lines = desc.split('\n')
+                                    heart_numbers = []
+                                    for i, line in enumerate(lines[:3]):
+                                        matches = re.findall(r'`([^`]*)`', line)
+                                        if len(matches) >= 2 and matches[1].isdigit():
+                                            heart_numbers.append(int(matches[1]))
+                                            print(f"[Bot 1] Dòng {i+1} số tim: {int(matches[1])}")
+                                        else:
+                                            heart_numbers.append(0)
+                                            print(f"[Bot 1] Dòng {i+1} không tìm thấy số tim, mặc định 0")
+                                    if sum(heart_numbers) == 0:
+                                        print("[Bot 1] Không có số tim nào, bỏ qua.\n")
                                     else:
-                                        max_index = heart_numbers.index(max_num); emoji = ["1️⃣", "2️⃣", "3️⃣"][max_index]; delay = {"1️⃣": 0.5, "2️⃣": 1.5, "3️⃣": 2.2}[emoji]
-                                        print(f"[Bot 1] Chọn dòng {max_index+1} với số tim {max_num} → Emoji {emoji} sau {delay}s\n")
-                                        def grab():
-                                            try: bot.addReaction(main_channel_id, last_drop_msg_id, emoji); print("[Bot 1] Đã thả emoji grab!"); bot.sendMessage(ktb_channel_id, "kt b"); print("[Bot 1] Đã nhắn 'kt b'!")
-                                            except Exception as e: print(f"[Bot 1] Lỗi khi grab hoặc nhắn kt b: {e}")
-                                        threading.Timer(delay, grab).start()
-                                break
-                    threading.Thread(target=read_karibbit).start()
+                                        max_num = max(heart_numbers)
+                                        if max_num < heart_threshold:
+                                            print(f"[Bot 1] Số tim lớn nhất {max_num} < {heart_threshold}, không grab!\n")
+                                        else:
+                                            max_index = heart_numbers.index(max_num)
+                                            emoji = ["1️⃣", "2️⃣", "3️⃣"][max_index]
+                                            delay = {"1️⃣": 0.5, "2️⃣": 1.5, "3️⃣": 2.2}[emoji]
+                                            print(f"[Bot 1] Chọn dòng {max_index+1} với số tim {max_num} → Emoji {emoji} sau {delay}s\n")
+                                            def grab():
+                                                try:
+                                                    bot.addReaction(main_channel_id, last_drop_msg_id, emoji)
+                                                    print("[Bot 1] Đã thả emoji grab!")
+                                                    bot.sendMessage(ktb_channel_id, "kt b")
+                                                    print("[Bot 1] Đã nhắn 'kt b'!")
+                                                except Exception as e:
+                                                    print(f"[Bot 1] Lỗi khi grab hoặc nhắn kt b: {e}")
+                                            threading.Timer(delay, grab).start()
+                                    break
+                        threading.Thread(target=read_karibbit).start()
+    
     if is_main_2:
         @bot.gateway.command
         def on_message(resp):
             global auto_grab_enabled_2, heart_threshold_2, last_drop_msg_id
             if resp.event.message:
-                msg = resp.parsed.auto(); author = msg.get("author", {}).get("id"); content = msg.get("content", ""); channel = msg.get("channel_id"); mentions = msg.get("mentions", [])
-                if author == karuta_id and channel == main_channel_id and "is dropping" not in content and not mentions and auto_grab_enabled_2:
-                    print("\n[Bot 2] Phát hiện tự drop! Đọc tin nhắn Karibbit...\n"); last_drop_msg_id = msg["id"]
-                    def read_karibbit_2():
-                        time.sleep(0.5); messages = bot.getMessages(main_channel_id, num=5).json()
-                        for msg_inner in messages:
-                            if msg_inner.get("author", {}).get("id") == karibbit_id and "embeds" in msg_inner and len(msg_inner["embeds"]) > 0:
-                                desc = msg_inner["embeds"][0].get("description", ""); print(f"\n[Bot 2] ===== Tin nhắn Karibbit đọc được =====\n{desc}\n[Bot 2] ===== Kết thúc tin nhắn =====\n")
-                                lines = desc.split('\n'); heart_numbers = []
-                                for i, line in enumerate(lines[:3]):
-                                    matches = re.findall(r'`([^`]*)`', line)
-                                    if len(matches) >= 2 and matches[1].isdigit(): heart_numbers.append(int(matches[1])); print(f"[Bot 2] Dòng {i+1} số tim: {int(matches[1])}")
-                                    else: heart_numbers.append(0); print(f"[Bot 2] Dòng {i+1} không tìm thấy số tim, mặc định 0")
-                                if sum(heart_numbers) == 0: print("[Bot 2] Không có số tim nào, bỏ qua.\n")
-                                else:
-                                    max_num = max(heart_numbers)
-                                    if max_num < heart_threshold_2: print(f"[Bot 2] Số tim lớn nhất {max_num} < {heart_threshold_2}, không grab!\n")
+                msg = resp.parsed.auto()
+                author = msg.get("author", {}).get("id")
+                content = msg.get("content", "")
+                channel = msg.get("channel_id")
+                mentions = msg.get("mentions", [])
+                if author == karuta_id and channel == main_channel_id:
+                    if "is dropping" not in content and not mentions and auto_grab_enabled_2:
+                        print("\n[Bot 2] Phát hiện tự drop! Đọc tin nhắn Karibbit...\n")
+                        last_drop_msg_id = msg["id"]
+                        def read_karibbit_2():
+                            time.sleep(0.5)
+                            messages = bot.getMessages(main_channel_id, num=5).json()
+                            for msg_inner in messages:
+                                author_id = msg_inner.get("author", {}).get("id")
+                                if author_id == karibbit_id and "embeds" in msg_inner and len(msg_inner["embeds"]) > 0:
+                                    desc = msg_inner["embeds"][0].get("description", "")
+                                    print(f"\n[Bot 2] ===== Tin nhắn Karibbit đọc được =====\n{desc}\n[Bot 2] ===== Kết thúc tin nhắn =====\n")
+                                    lines = desc.split('\n')
+                                    heart_numbers = []
+                                    for i, line in enumerate(lines[:3]):
+                                        matches = re.findall(r'`([^`]*)`', line)
+                                        if len(matches) >= 2 and matches[1].isdigit():
+                                            heart_numbers.append(int(matches[1]))
+                                            print(f"[Bot 2] Dòng {i+1} số tim: {int(matches[1])}")
+                                        else:
+                                            heart_numbers.append(0)
+                                            print(f"[Bot 2] Dòng {i+1} không tìm thấy số tim, mặc định 0")
+                                    if sum(heart_numbers) == 0:
+                                        print("[Bot 2] Không có số tim nào, bỏ qua.\n")
                                     else:
-                                        max_index = heart_numbers.index(max_num); emoji = ["1️⃣", "2️⃣", "3️⃣"][max_index]; delay = {"1️⃣": 0.8, "2️⃣": 1.8, "3️⃣": 2.5}[emoji]
-                                        print(f"[Bot 2] Chọn dòng {max_index+1} với số tim {max_num} → Emoji {emoji} sau {delay}s\n")
-                                        def grab_2():
-                                            try: bot.addReaction(main_channel_id, last_drop_msg_id, emoji); print("[Bot 2] Đã thả emoji grab!"); bot.sendMessage(ktb_channel_id, "kt b"); print("[Bot 2] Đã nhắn 'kt b'!")
-                                            except Exception as e: print(f"[Bot 2] Lỗi khi grab hoặc nhắn kt b: {e}")
-                                        threading.Timer(delay, grab_2).start()
-                                break
-                    threading.Thread(target=read_karibbit_2).start()
+                                        max_num = max(heart_numbers)
+                                        if max_num < heart_threshold_2:
+                                            print(f"[Bot 2] Số tim lớn nhất {max_num} < {heart_threshold_2}, không grab!\n")
+                                        else:
+                                            max_index = heart_numbers.index(max_num)
+                                            emoji = ["1️⃣", "2️⃣", "3️⃣"][max_index]
+                                            delay = {"1️⃣": 0.8, "2️⃣": 1.8, "3️⃣": 2.5}[emoji]
+                                            print(f"[Bot 2] Chọn dòng {max_index+1} với số tim {max_num} → Emoji {emoji} sau {delay}s\n")
+                                            def grab_2():
+                                                try:
+                                                    bot.addReaction(main_channel_id, last_drop_msg_id, emoji)
+                                                    print("[Bot 2] Đã thả emoji grab!")
+                                                    bot.sendMessage(ktb_channel_id, "kt b")
+                                                    print("[Bot 2] Đã nhắn 'kt b'!")
+                                                except Exception as e:
+                                                    print(f"[Bot 2] Lỗi khi grab hoặc nhắn kt b: {e}")
+                                            threading.Timer(delay, grab_2).start()
+                                    break
+                        threading.Thread(target=read_karibbit_2).start()
+                        
     if is_main_3:
         @bot.gateway.command
         def on_message(resp):
             global auto_grab_enabled_3, heart_threshold_3, last_drop_msg_id
             if resp.event.message:
-                msg = resp.parsed.auto(); author = msg.get("author", {}).get("id"); content = msg.get("content", ""); channel = msg.get("channel_id"); mentions = msg.get("mentions", [])
-                if author == karuta_id and channel == main_channel_id and "is dropping" not in content and not mentions and auto_grab_enabled_3:
-                    print("\n[Bot 3] Phát hiện tự drop! Đọc tin nhắn Karibbit...\n"); last_drop_msg_id = msg["id"]
-                    def read_karibbit_3():
-                        time.sleep(0.5); messages = bot.getMessages(main_channel_id, num=5).json()
-                        for msg_inner in messages:
-                            if msg_inner.get("author", {}).get("id") == karibbit_id and "embeds" in msg_inner and len(msg_inner["embeds"]) > 0:
-                                desc = msg_inner["embeds"][0].get("description", ""); print(f"\n[Bot 3] ===== Tin nhắn Karibbit đọc được =====\n{desc}\n[Bot 3] ===== Kết thúc tin nhắn =====\n")
-                                lines = desc.split('\n'); heart_numbers = []
-                                for i, line in enumerate(lines[:3]):
-                                    matches = re.findall(r'`([^`]*)`', line)
-                                    if len(matches) >= 2 and matches[1].isdigit(): heart_numbers.append(int(matches[1])); print(f"[Bot 3] Dòng {i+1} số tim: {int(matches[1])}")
-                                    else: heart_numbers.append(0); print(f"[Bot 3] Dòng {i+1} không tìm thấy số tim, mặc định 0")
-                                if sum(heart_numbers) == 0: print("[Bot 3] Không có số tim nào, bỏ qua.\n")
-                                else:
-                                    max_num = max(heart_numbers)
-                                    if max_num < heart_threshold_3: print(f"[Bot 3] Số tim lớn nhất {max_num} < {heart_threshold_3}, không grab!\n")
+                msg = resp.parsed.auto()
+                author = msg.get("author", {}).get("id")
+                content = msg.get("content", "")
+                channel = msg.get("channel_id")
+                mentions = msg.get("mentions", [])
+                if author == karuta_id and channel == main_channel_id:
+                    if "is dropping" not in content and not mentions and auto_grab_enabled_3:
+                        print("\n[Bot 3] Phát hiện tự drop! Đọc tin nhắn Karibbit...\n")
+                        last_drop_msg_id = msg["id"]
+                        def read_karibbit_3():
+                            time.sleep(0.5)
+                            messages = bot.getMessages(main_channel_id, num=5).json()
+                            for msg_inner in messages:
+                                author_id = msg_inner.get("author", {}).get("id")
+                                if author_id == karibbit_id and "embeds" in msg_inner and len(msg_inner["embeds"]) > 0:
+                                    desc = msg_inner["embeds"][0].get("description", "")
+                                    print(f"\n[Bot 3] ===== Tin nhắn Karibbit đọc được =====\n{desc}\n[Bot 3] ===== Kết thúc tin nhắn =====\n")
+                                    lines = desc.split('\n')
+                                    heart_numbers = []
+                                    for i, line in enumerate(lines[:3]):
+                                        matches = re.findall(r'`([^`]*)`', line)
+                                        if len(matches) >= 2 and matches[1].isdigit():
+                                            heart_numbers.append(int(matches[1]))
+                                            print(f"[Bot 3] Dòng {i+1} số tim: {int(matches[1])}")
+                                        else:
+                                            heart_numbers.append(0)
+                                            print(f"[Bot 3] Dòng {i+1} không tìm thấy số tim, mặc định 0")
+                                    if sum(heart_numbers) == 0:
+                                        print("[Bot 3] Không có số tim nào, bỏ qua.\n")
                                     else:
-                                        max_index = heart_numbers.index(max_num); emoji = ["1️⃣", "2️⃣", "3️⃣"][max_index]; delay = {"1️⃣": 1.1, "2️⃣": 2.1, "3️⃣": 2.8}[emoji]
-                                        print(f"[Bot 3] Chọn dòng {max_index+1} với số tim {max_num} → Emoji {emoji} sau {delay}s\n")
-                                        def grab_3():
-                                            try: bot.addReaction(main_channel_id, last_drop_msg_id, emoji); print("[Bot 3] Đã thả emoji grab!"); bot.sendMessage(ktb_channel_id, "kt b"); print("[Bot 3] Đã nhắn 'kt b'!")
-                                            except Exception as e: print(f"[Bot 3] Lỗi khi grab hoặc nhắn kt b: {e}")
-                                        threading.Timer(delay, grab_3).start()
-                                break
-                    threading.Thread(target=read_karibbit_3).start()
+                                        max_num = max(heart_numbers)
+                                        if max_num < heart_threshold_3:
+                                            print(f"[Bot 3] Số tim lớn nhất {max_num} < {heart_threshold_3}, không grab!\n")
+                                        else:
+                                            max_index = heart_numbers.index(max_num)
+                                            emoji = ["1️⃣", "2️⃣", "3️⃣"][max_index]
+                                            delay = {"1️⃣": 1.1, "2️⃣": 2.1, "3️⃣": 2.8}[emoji]
+                                            print(f"[Bot 3] Chọn dòng {max_index+1} với số tim {max_num} → Emoji {emoji} sau {delay}s\n")
+                                            def grab_3():
+                                                try:
+                                                    bot.addReaction(main_channel_id, last_drop_msg_id, emoji)
+                                                    print("[Bot 3] Đã thả emoji grab!")
+                                                    bot.sendMessage(ktb_channel_id, "kt b")
+                                                    print("[Bot 3] Đã nhắn 'kt b'!")
+                                                except Exception as e:
+                                                    print(f"[Bot 3] Lỗi khi grab hoặc nhắn kt b: {e}")
+                                            threading.Timer(delay, grab_3).start()
+                                    break
+                        threading.Thread(target=read_karibbit_3).start()
 
     threading.Thread(target=bot.gateway.run, daemon=True).start()
     return bot
 
 def run_work_bot(token, acc_index):
     bot = discum.Client(token=token, log={"console": False, "file": False})
-    headers = {"Authorization": token, "Content-Type": "application/json"}; step = {"value": 0}
-    def send_karuta_command(): print(f"[Work Acc {acc_index}] Gửi lệnh 'kc o:ef'..."); bot.sendMessage(work_channel_id, "kc o:ef")
-    def send_kn_command(): print(f"[Work Acc {acc_index}] Gửi lệnh 'kn'..."); bot.sendMessage(work_channel_id, "kn")
-    def send_kw_command(): print(f"[Work Acc {acc_index}] Gửi lệnh 'kw'..."); bot.sendMessage(work_channel_id, "kw"); step["value"] = 2
+    headers = {"Authorization": token, "Content-Type": "application/json"}
+    step = {"value": 0}
+    def send_karuta_command():
+        print(f"[Work Acc {acc_index}] Gửi lệnh 'kc o:ef'...")
+        bot.sendMessage(work_channel_id, "kc o:ef")
+    def send_kn_command():
+        print(f"[Work Acc {acc_index}] Gửi lệnh 'kn'...")
+        bot.sendMessage(work_channel_id, "kn")
+    def send_kw_command():
+        print(f"[Work Acc {acc_index}] Gửi lệnh 'kw'...")
+        bot.sendMessage(work_channel_id, "kw")
+        step["value"] = 2
     def click_tick(channel_id, message_id, custom_id, application_id, guild_id):
         try:
             payload = {"type": 3, "guild_id": guild_id, "channel_id": channel_id, "message_id": message_id, "application_id": application_id, "session_id": "a", "data": {"component_type": 2, "custom_id": custom_id}}
             r = requests.post("https://discord.com/api/v9/interactions", headers=headers, json=payload)
             if r.status_code == 204: print(f"[Work Acc {acc_index}] Click tick thành công!")
             else: print(f"[Work Acc {acc_index}] Click thất bại! Mã lỗi: {r.status_code}, Nội dung: {r.text}")
-        except Exception as e: print(f"[Work Acc {acc_index}] Lỗi click tick: {str(e)}")
+        except Exception as e:
+            print(f"[Work Acc {acc_index}] Lỗi click tick: {str(e)}")
     @bot.gateway.command
     def on_message(resp):
         if resp.event.message:
             m = resp.parsed.auto()
-            if str(m.get('channel_id')) != work_channel_id: return
-            author_id = str(m.get('author', {}).get('id', '')); guild_id = m.get('guild_id')
+            if str(m.get('channel_id')) != work_channel_id:
+                return
+            author_id = str(m.get('author', {}).get('id', ''))
+            guild_id = m.get('guild_id')
             if step["value"] == 0 and author_id == karuta_id and 'embeds' in m and len(m['embeds']) > 0:
-                desc = m['embeds'][0].get('description', ''); card_codes = re.findall(r'\bv[a-zA-Z0-9]{6}\b', desc)
+                desc = m['embeds'][0].get('description', '')
+                card_codes = re.findall(r'\bv[a-zA-Z0-9]{6}\b', desc)
                 if card_codes and len(card_codes) >= 10:
-                    first_5 = card_codes[:5]; last_5 = card_codes[-5:]
-                    print(f"[Work Acc {acc_index}] Mã đầu: {', '.join(first_5)}"); print(f"[Work Acc {acc_index}] Mã cuối: {', '.join(last_5)}")
-                    for i, code in enumerate(last_5): suffix = chr(97 + i); time.sleep(2 if i == 0 else 1.5); bot.sendMessage(work_channel_id, f"kjw {code} {suffix}")
-                    for i, code in enumerate(first_5): suffix = chr(97 + i); time.sleep(1.5); bot.sendMessage(work_channel_id, f"kjw {code} {suffix}")
-                    time.sleep(1); send_kn_command(); step["value"] = 1
+                    first_5, last_5 = card_codes[:5], card_codes[-5:]
+                    print(f"[Work Acc {acc_index}] Mã đầu: {', '.join(first_5)}")
+                    print(f"[Work Acc {acc_index}] Mã cuối: {', '.join(last_5)}")
+                    for i, code in enumerate(last_5):
+                        suffix = chr(97 + i)
+                        time.sleep(2 if i == 0 else 1.5)
+                        bot.sendMessage(work_channel_id, f"kjw {code} {suffix}")
+                    for i, code in enumerate(first_5):
+                        suffix = chr(97 + i)
+                        time.sleep(1.5)
+                        bot.sendMessage(work_channel_id, f"kjw {code} {suffix}")
+                    time.sleep(1)
+                    send_kn_command()
+                    step["value"] = 1
             elif step["value"] == 1 and author_id == karuta_id and 'embeds' in m and len(m['embeds']) > 0:
-                desc = m['embeds'][0].get('description', ''); lines = desc.split('\n')
+                desc = m['embeds'][0].get('description', '')
+                lines = desc.split('\n')
                 if len(lines) >= 2:
                     match = re.search(r'\d+\.\s*`([^`]+)`', lines[1])
                     if match:
-                        resource = match.group(1); print(f"[Work Acc {acc_index}] Tài nguyên chọn: {resource}"); time.sleep(2); bot.sendMessage(work_channel_id, f"kjn `{resource}` a b c d e"); time.sleep(1); send_kw_command()
+                        resource = match.group(1)
+                        print(f"[Work Acc {acc_index}] Tài nguyên chọn: {resource}")
+                        time.sleep(2)
+                        bot.sendMessage(work_channel_id, f"kjn `{resource}` a b c d e")
+                        time.sleep(1)
+                        send_kw_command()
             elif step["value"] == 2 and author_id == karuta_id and 'components' in m:
-                message_id = m['id']; application_id = m.get('application_id', karuta_id); last_custom_id = None
+                message_id = m['id']
+                application_id = m.get('application_id', karuta_id)
+                last_custom_id = None
                 for comp in m['components']:
                     if comp['type'] == 1:
                         for btn in comp['components']:
-                            if btn['type'] == 2: last_custom_id = btn['custom_id']; print(f"[Work Acc {acc_index}] Phát hiện button, custom_id: {last_custom_id}")
-                if last_custom_id: click_tick(work_channel_id, message_id, last_custom_id, application_id, guild_id); step["value"] = 3; bot.gateway.close()
-    print(f"[Work Acc {acc_index}] Bắt đầu hoạt động..."); threading.Thread(target=bot.gateway.run, daemon=True).start(); time.sleep(3); send_karuta_command()
+                            if btn['type'] == 2:
+                                last_custom_id = btn['custom_id']
+                                print(f"[Work Acc {acc_index}] Phát hiện button, custom_id: {last_custom_id}")
+                if last_custom_id:
+                    click_tick(work_channel_id, message_id, last_custom_id, application_id, guild_id)
+                    step["value"] = 3
+                    bot.gateway.close()
+    print(f"[Work Acc {acc_index}] Bắt đầu hoạt động...")
+    threading.Thread(target=bot.gateway.run, daemon=True).start()
+    time.sleep(3)
+    send_karuta_command()
     timeout = time.time() + 90
-    while step["value"] != 3 and time.time() < timeout: time.sleep(1)
-    bot.gateway.close(); print(f"[Work Acc {acc_index}] Đã hoàn thành, chuẩn bị tới acc tiếp theo.")
+    while step["value"] != 3 and time.time() < timeout:
+        time.sleep(1)
+    bot.gateway.close()
+    print(f"[Work Acc {acc_index}] Đã hoàn thành, chuẩn bị tới acc tiếp theo.")
 
 def auto_work_loop():
     global auto_work_enabled
     while True:
         if auto_work_enabled:
-            with bots_lock: current_tokens = tokens.copy()
+            with bots_lock:
+                current_tokens = tokens.copy()
             for i, token in enumerate(current_tokens):
-                if token.strip(): print(f"[Auto Work] Đang chạy acc {i+1}..."); run_work_bot(token.strip(), i+1); print(f"[Auto Work] Acc {i+1} xong, chờ {work_delay_between_acc} giây..."); time.sleep(work_delay_between_acc)
-            print(f"[Auto Work] Hoàn thành tất cả acc, chờ {work_delay_after_all} giây để lặp lại..."); time.sleep(work_delay_after_all)
-        else: time.sleep(10)
+                if token.strip():
+                    print(f"[Auto Work] Đang chạy acc {i+1}...")
+                    run_work_bot(token.strip(), i+1)
+                    print(f"[Auto Work] Acc {i+1} xong, chờ {work_delay_between_acc} giây...")
+                    time.sleep(work_delay_between_acc)
+            print(f"[Auto Work] Hoàn thành tất cả acc, chờ {work_delay_after_all} giây để lặp lại...")
+            time.sleep(work_delay_after_all)
+        else:
+            time.sleep(10)
 
 def auto_reboot_loop():
     global auto_reboot_stop_event
@@ -229,22 +382,25 @@ def auto_reboot_loop():
     while not auto_reboot_stop_event.is_set():
         print(f"[Auto Reboot] Bắt đầu chu kỳ reboot. Chờ {auto_reboot_delay} giây cho chu kỳ tiếp theo...")
         interrupted = auto_reboot_stop_event.wait(timeout=auto_reboot_delay)
-        if interrupted: break
+        if interrupted:
+            break
         print("[Auto Reboot] Hết thời gian chờ, tiến hành reboot 3 tài khoản chính.")
-        if main_bot: reboot_bot('main_1'); time.sleep(5)
-        if main_bot_2: reboot_bot('main_2'); time.sleep(5)
-        if main_bot_3: reboot_bot('main_3')
+        if main_bot:
+            reboot_bot('main_1')
+            time.sleep(5)
+        if main_bot_2:
+            reboot_bot('main_2')
+            time.sleep(5)
+        if main_bot_3:
+            reboot_bot('main_3')
     print("[Auto Reboot] Luồng tự động reboot đã dừng.")
 
-# === SỬA ĐỔI: Thêm các acc chính vào spam_loop ===
 def spam_loop():
     global spam_enabled, spam_message, spam_delay
     while True:
         if spam_enabled and spam_message:
             all_bots_to_spam = []
             all_bot_names = []
-            
-            # Lấy danh sách tất cả các bot đang hoạt động một cách an toàn
             with bots_lock:
                 if main_bot:
                     all_bots_to_spam.append(main_bot)
@@ -255,27 +411,24 @@ def spam_loop():
                 if main_bot_3:
                     all_bots_to_spam.append(main_bot_3)
                     all_bot_names.append("Acc Chính 3")
-                
                 all_bots_to_spam.extend(bots)
                 all_bot_names.extend(acc_names[:len(bots)])
-
-            # Lặp qua danh sách tổng hợp để spam
             for idx, bot in enumerate(all_bots_to_spam):
                 try:
                     bot_name = all_bot_names[idx]
                     bot.sendMessage(spam_channel_id, spam_message)
                     print(f"[{bot_name}] đã gửi: {spam_message}")
-                    time.sleep(2) # Delay giữa mỗi tài khoản để tránh spam quá nhanh
+                    time.sleep(2)
                 except Exception as e:
                     print(f"Lỗi gửi spam từ {all_bot_names[idx]}: {e}")
-        
-        # Delay giữa mỗi chu kỳ spam
         time.sleep(spam_delay)
 
 def keep_alive():
     while True:
-        try: time.sleep(random.randint(60, 120))
-        except: pass
+        try:
+            time.sleep(random.randint(60, 120))
+        except:
+            pass
 
 app = Flask(__name__)
 HTML = """
@@ -444,82 +597,80 @@ def index():
     msg_status = ""
 
     if request.method == "POST":
-        # Process Auto Reboot controls
-        if "auto_reboot_toggle" in request.form:
-            auto_reboot_toggle = request.form.get("auto_reboot_toggle")
-            if auto_reboot_toggle == "on":
-                if not auto_reboot_enabled:
-                    auto_reboot_enabled = True
-                    auto_reboot_stop_event = threading.Event()
-                    auto_reboot_thread = threading.Thread(target=auto_reboot_loop, daemon=True)
-                    auto_reboot_thread.start()
-                    msg_status = "Đã BẬT chế độ tự động reboot acc chính."
-                else: msg_status = "Chế độ tự động reboot đã được bật từ trước."
-            elif auto_reboot_toggle == "off":
-                if auto_reboot_enabled and auto_reboot_stop_event:
-                    auto_reboot_enabled = False
-                    auto_reboot_stop_event.set()
-                    auto_reboot_thread = None
-                    msg_status = "Đã TẮT chế độ tự động reboot."
-                else: msg_status = "Chế độ tự động reboot chưa được bật."
-        
-        if "auto_reboot_delay" in request.form:
-            try:
-                delay_val = int(request.form.get("auto_reboot_delay"))
-                if delay_val >= 60:
-                    auto_reboot_delay = delay_val
-                    msg_status = f"Đã cập nhật delay tự động reboot thành {auto_reboot_delay} giây."
-                else: msg_status = "Lỗi: Delay phải lớn hơn hoặc bằng 60 giây."
-            except (ValueError, TypeError): msg_status = "Lỗi: Delay không hợp lệ."
-        
-        # Process other form submissions
-        if 'message' in request.form:
-             with bots_lock:
-                for idx, bot in enumerate(bots):
-                    try: threading.Timer(2 * idx, bot.sendMessage, args=(other_channel_id, request.form['message'])).start()
-                    except Exception as e: print(f"Lỗi gửi tin nhắn: {e}")
-             msg_status = "Đã gửi thủ công thành công!"
-        if 'quickmsg' in request.form:
-             with bots_lock:
-                for idx, bot in enumerate(bots):
-                    try: threading.Timer(2 * idx, bot.sendMessage, args=(other_channel_id, request.form['quickmsg'])).start()
-                    except Exception as e: print(f"Lỗi gửi tin nhắn: {e}")
-             msg_status = f"Đã gửi lệnh {request.form['quickmsg']} thành công!"
-        if 'toggle' in request.form: auto_grab_enabled = request.form['toggle'] == "on"; msg_status = f"Tự grab Acc 1 {'đã bật' if auto_grab_enabled else 'đã tắt'}"
-        if 'toggle_2' in request.form: auto_grab_enabled_2 = request.form['toggle_2'] == "on"; msg_status = f"Tự grab Acc 2 {'đã bật' if auto_grab_enabled_2 else 'đã tắt'}"
-        if 'toggle_3' in request.form: auto_grab_enabled_3 = request.form['toggle_3'] == "on"; msg_status = f"Tự grab Acc 3 {'đã bật' if auto_grab_enabled_3 else 'đã tắt'}"
-        if 'heart_threshold' in request.form:
-            try: heart_threshold = int(request.form['heart_threshold']); msg_status = f"Đã cập nhật mức tim Acc 1: {heart_threshold}"
-            except: msg_status = "Mức tim Acc 1 không hợp lệ!"
-        if 'heart_threshold_2' in request.form:
-            try: heart_threshold_2 = int(request.form['heart_threshold_2']); msg_status = f"Đã cập nhật mức tim Acc 2: {heart_threshold_2}"
-            except: msg_status = "Mức tim Acc 2 không hợp lệ!"
-        if 'heart_threshold_3' in request.form:
-            try: heart_threshold_3 = int(request.form['heart_threshold_3']); msg_status = f"Đã cập nhật mức tim Acc 3: {heart_threshold_3}"
-            except: msg_status = "Mức tim Acc 3 không hợp lệ!"
-        if 'send_codes' in request.form:
-            acc_index, delay, prefix, codes = request.form.get("acc_index"), request.form.get("delay"), request.form.get("prefix"), request.form.get("codes")
-            if acc_index and delay and codes:
+        if "auto_reboot_toggle" in request.form or "auto_reboot_delay" in request.form:
+            if "auto_reboot_toggle" in request.form:
+                auto_reboot_toggle = request.form.get("auto_reboot_toggle")
+                if auto_reboot_toggle == "on":
+                    if not auto_reboot_enabled:
+                        auto_reboot_enabled = True
+                        auto_reboot_stop_event = threading.Event()
+                        auto_reboot_thread = threading.Thread(target=auto_reboot_loop, daemon=True)
+                        auto_reboot_thread.start()
+                        msg_status = "Đã BẬT chế độ tự động reboot acc chính."
+                    else: msg_status = "Chế độ tự động reboot đã được bật từ trước."
+                elif auto_reboot_toggle == "off":
+                    if auto_reboot_enabled and auto_reboot_stop_event:
+                        auto_reboot_enabled = False
+                        auto_reboot_stop_event.set()
+                        auto_reboot_thread = None
+                        msg_status = "Đã TẮT chế độ tự động reboot."
+                    else: msg_status = "Chế độ tự động reboot chưa được bật."
+            if "auto_reboot_delay" in request.form:
                 try:
-                    acc_idx, delay_val, codes_list = int(acc_index), float(delay), codes.split(",")
-                    if acc_idx < len(bots):
-                        with bots_lock:
-                            for i, code in enumerate(codes_list):
-                                if code.strip():
-                                    final_msg = f"{prefix} {code.strip()}" if prefix else code.strip()
-                                    try: threading.Timer(delay_val * i, bots[acc_idx].sendMessage, args=(other_channel_id, final_msg)).start()
-                                    except Exception as e: print(f"Lỗi gửi mã: {e}")
-                    msg_status = "Đã bắt đầu gửi mã!"
-                except Exception as e: print(f"Lỗi xử lý codes: {e}")
-        if 'spamtoggle' in request.form:
-            spam_enabled = request.form['spamtoggle'] == "on"
-            spam_message = request.form.get("spammsg", "").strip()
-            if 'spam_delay' in request.form:
-                try: spam_delay = int(request.form['spam_delay'])
-                except: pass
-            msg_status = f"Spam {'đã bật' if spam_enabled else 'đã tắt'}"
-        if 'auto_work_toggle' in request.form: auto_work_enabled = request.form['auto_work_toggle'] == "on"; msg_status = f"Auto Work {'đã bật' if auto_work_enabled else 'đã tắt'}"
-        if 'reboot_target' in request.form: reboot_bot(request.form['reboot_target']); msg_status = f"Đã gửi yêu cầu reboot cho {request.form['reboot_target']}!"
+                    delay_val = int(request.form.get("auto_reboot_delay"))
+                    if delay_val >= 60:
+                        auto_reboot_delay = delay_val
+                        msg_status = f"Đã cập nhật delay tự động reboot thành {auto_reboot_delay} giây."
+                    else: msg_status = "Lỗi: Delay phải lớn hơn hoặc bằng 60 giây."
+                except (ValueError, TypeError): pass # Ignore if toggle is also pressed
+        else:
+            if 'message' in request.form:
+                 with bots_lock:
+                    for idx, bot in enumerate(bots):
+                        try: threading.Timer(2 * idx, bot.sendMessage, args=(other_channel_id, request.form['message'])).start()
+                        except Exception as e: print(f"Lỗi gửi tin nhắn: {e}")
+                 msg_status = "Đã gửi thủ công thành công!"
+            if 'quickmsg' in request.form:
+                 with bots_lock:
+                    for idx, bot in enumerate(bots):
+                        try: threading.Timer(2 * idx, bot.sendMessage, args=(other_channel_id, request.form['quickmsg'])).start()
+                        except Exception as e: print(f"Lỗi gửi tin nhắn: {e}")
+                 msg_status = f"Đã gửi lệnh {request.form['quickmsg']} thành công!"
+            if 'toggle' in request.form: auto_grab_enabled = request.form['toggle'] == "on"; msg_status = f"Tự grab Acc 1 {'đã bật' if auto_grab_enabled else 'đã tắt'}"
+            if 'toggle_2' in request.form: auto_grab_enabled_2 = request.form['toggle_2'] == "on"; msg_status = f"Tự grab Acc 2 {'đã bật' if auto_grab_enabled_2 else 'đã tắt'}"
+            if 'toggle_3' in request.form: auto_grab_enabled_3 = request.form['toggle_3'] == "on"; msg_status = f"Tự grab Acc 3 {'đã bật' if auto_grab_enabled_3 else 'đã tắt'}"
+            if 'heart_threshold' in request.form:
+                try: heart_threshold = int(request.form['heart_threshold']); msg_status = f"Đã cập nhật mức tim Acc 1: {heart_threshold}"
+                except: msg_status = "Mức tim Acc 1 không hợp lệ!"
+            if 'heart_threshold_2' in request.form:
+                try: heart_threshold_2 = int(request.form['heart_threshold_2']); msg_status = f"Đã cập nhật mức tim Acc 2: {heart_threshold_2}"
+                except: msg_status = "Mức tim Acc 2 không hợp lệ!"
+            if 'heart_threshold_3' in request.form:
+                try: heart_threshold_3 = int(request.form['heart_threshold_3']); msg_status = f"Đã cập nhật mức tim Acc 3: {heart_threshold_3}"
+                except: msg_status = "Mức tim Acc 3 không hợp lệ!"
+            if 'send_codes' in request.form:
+                acc_index, delay, prefix, codes = request.form.get("acc_index"), request.form.get("delay"), request.form.get("prefix"), request.form.get("codes")
+                if acc_index and delay and codes:
+                    try:
+                        acc_idx, delay_val, codes_list = int(acc_index), float(delay), codes.split(",")
+                        if acc_idx < len(bots):
+                            with bots_lock:
+                                for i, code in enumerate(codes_list):
+                                    if code.strip():
+                                        final_msg = f"{prefix} {code.strip()}" if prefix else code.strip()
+                                        try: threading.Timer(delay_val * i, bots[acc_idx].sendMessage, args=(other_channel_id, final_msg)).start()
+                                        except Exception as e: print(f"Lỗi gửi mã: {e}")
+                        msg_status = "Đã bắt đầu gửi mã!"
+                    except Exception as e: print(f"Lỗi xử lý codes: {e}")
+            if 'spamtoggle' in request.form:
+                spam_enabled = request.form['spamtoggle'] == "on"
+                spam_message = request.form.get("spammsg", "").strip()
+                if 'spam_delay' in request.form:
+                    try: spam_delay = int(request.form['spam_delay'])
+                    except: pass
+                msg_status = f"Spam {'đã bật' if spam_enabled else 'đã tắt'}"
+            if 'auto_work_toggle' in request.form: auto_work_enabled = request.form['auto_work_toggle'] == "on"; msg_status = f"Auto Work {'đã bật' if auto_work_enabled else 'đã tắt'}"
+            if 'reboot_target' in request.form: reboot_bot(request.form['reboot_target']); msg_status = f"Đã gửi yêu cầu reboot cho {request.form['reboot_target']}!"
     
     if msg_status:
         alert_section = f'<div class="row"><div class="col-12"><div class="alert alert-success">{msg_status}</div></div></div>'
