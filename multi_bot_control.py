@@ -1,4 +1,4 @@
-# multi_bot_control_horror_theme.py
+# multi_bot_control_classy_theme.py
 import discum
 import threading
 import time
@@ -45,33 +45,16 @@ def reboot_bot(target_id):
     with bots_lock:
         print(f"[Reboot] Nhận được yêu cầu reboot cho target: {target_id}")
         if target_id == 'main_1' and main_bot:
-            print("[Reboot] Đang xử lý Acc Chính 1...")
-            try: main_bot.gateway.close()
-            except Exception as e: print(f"[Reboot] Lỗi khi đóng Acc Chính 1: {e}")
-            main_bot = create_bot(main_token, is_main=True)
-            print("[Reboot] Acc Chính 1 đã được khởi động lại.")
+            print("[Reboot] Đang xử lý Acc Chính 1..."); try: main_bot.gateway.close(); except Exception as e: print(f"[Reboot] Lỗi khi đóng Acc Chính 1: {e}"); main_bot = create_bot(main_token, is_main=True); print("[Reboot] Acc Chính 1 đã được khởi động lại.")
         elif target_id == 'main_2' and main_bot_2:
-            print("[Reboot] Đang xử lý Acc Chính 2...")
-            try: main_bot_2.gateway.close()
-            except Exception as e: print(f"[Reboot] Lỗi khi đóng Acc Chính 2: {e}")
-            main_bot_2 = create_bot(main_token_2, is_main_2=True)
-            print("[Reboot] Acc Chính 2 đã được khởi động lại.")
+            print("[Reboot] Đang xử lý Acc Chính 2..."); try: main_bot_2.gateway.close(); except Exception as e: print(f"[Reboot] Lỗi khi đóng Acc Chính 2: {e}"); main_bot_2 = create_bot(main_token_2, is_main_2=True); print("[Reboot] Acc Chính 2 đã được khởi động lại.")
         elif target_id == 'main_3' and main_bot_3:
-            print("[Reboot] Đang xử lý Acc Chính 3...")
-            try: main_bot_3.gateway.close()
-            except Exception as e: print(f"[Reboot] Lỗi khi đóng Acc Chính 3: {e}")
-            main_bot_3 = create_bot(main_token_3, is_main_3=True)
-            print("[Reboot] Acc Chính 3 đã được khởi động lại.")
+            print("[Reboot] Đang xử lý Acc Chính 3..."); try: main_bot_3.gateway.close(); except Exception as e: print(f"[Reboot] Lỗi khi đóng Acc Chính 3: {e}"); main_bot_3 = create_bot(main_token_3, is_main_3=True); print("[Reboot] Acc Chính 3 đã được khởi động lại.")
         elif target_id.startswith('sub_'):
             try:
                 index = int(target_id.split('_')[1])
                 if 0 <= index < len(bots):
-                    print(f"[Reboot] Đang xử lý Acc Phụ {index}...")
-                    try: bots[index].gateway.close()
-                    except Exception as e: print(f"[Reboot] Lỗi khi đóng Acc Phụ {index}: {e}")
-                    token_to_reboot = tokens[index]
-                    bots[index] = create_bot(token_to_reboot.strip())
-                    print(f"[Reboot] Acc Phụ {index} đã được khởi động lại.")
+                    print(f"[Reboot] Đang xử lý Acc Phụ {index}..."); try: bots[index].gateway.close(); except Exception as e: print(f"[Reboot] Lỗi khi đóng Acc Phụ {index}: {e}"); token_to_reboot = tokens[index]; bots[index] = create_bot(token_to_reboot.strip()); print(f"[Reboot] Acc Phụ {index} đã được khởi động lại.")
                 else: print(f"[Reboot] Index không hợp lệ: {index}")
             except (ValueError, IndexError) as e: print(f"[Reboot] Lỗi xử lý target Acc Phụ: {e}")
         else:
@@ -275,132 +258,177 @@ def keep_alive():
         except: pass
 
 app = Flask(__name__)
+
+# === GIAO DIỆN MỚI: FUTURISTIC DASHBOARD ===
 HTML = """
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>D.E.E.P. C.O.N.T.R.O.L</title>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Karuta Control Matrix</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        /* === GIAO DIỆN DEEPWEB / HORROR === */
-        @keyframes text-flicker {{ 0% {{ opacity: 0.8; }} 2% {{ opacity: 1; }} 8% {{ opacity: 0.5; }} 9% {{ opacity: 1; }} 12% {{ opacity: 0.9; }} 20% {{ opacity: 1; }} 25% {{ opacity: 0.4; }} 30% {{ opacity: 1; }} 70% {{ opacity: 1; }} 72% {{ opacity: 0.6; }} 77% {{ opacity: 1; }} 100% {{ opacity: 1; }} }}
-        @keyframes scanline {{ 0% {{ transform: translateY(0); }} 100% {{ transform: translateY(100%); }} }}
         * {{ box-sizing: border-box; }}
         body {{
-            background-color: #000000;
-            font-family: 'Courier New', Courier, monospace;
-            color: #00ff00;
-            text-shadow: 0 0 5px #00ff00, 0 0 10px rgba(0, 255, 0, 0.5);
-            margin: 0; padding: 20px 0;
-            overflow-x: hidden;
+            background: linear-gradient(135deg, #101116 0%, #191A24 50%, #101116 100%);
+            min-height: 100vh;
+            font-family: 'Inter', sans-serif;
+            color: #e0e0e0;
+            margin: 0; padding: 25px;
         }}
-        body::before {{
-            content: ''; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: repeating-linear-gradient(0deg, rgba(0,0,0,0.5), rgba(0,0,0,0.5) 1px, transparent 1px, transparent 2px);
-            pointer-events: none; z-index: 1000;
+        @keyframes fadeInUp {{ from {{ opacity: 0; transform: translateY(20px); }} to {{ opacity: 1; transform: translateY(0); }} }}
+        .header-section {{
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
         }}
-        .container-fluid {{ padding: 0 25px; }}
-        .header-section {{ border-bottom: 2px solid #ff0000; padding: 1.5rem; margin-bottom: 2rem; text-align: center; }}
-        .header-section h1 {{ font-size: 2.5rem; font-weight: 700; color: #ff0000; text-shadow: 0 0 10px #ff0000, 0 0 20px #ff0000; animation: text-flicker 4s linear infinite; }}
-        .header-section p {{ font-size: 1.1rem; color: #888; letter-spacing: 2px; }}
-        .control-card {{ background: #0a0a0a; border: 1px solid #ff0000; box-shadow: 0 0 15px rgba(255, 0, 0, 0.4), inset 0 0 10px rgba(255, 0, 0, 0.2); margin-bottom: 2rem; border-radius: 0; }}
-        .control-card .card-header {{ background: #1a0000; border-bottom: 1px solid #ff0000; padding: 1rem; }}
-        .control-card .card-header h5 {{ color: #ff0000; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; animation: text-flicker 5s linear infinite reverse; }}
+        .header-section h1 {{
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(45deg, #00d4ff, #a55eea);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }}
+        .control-card {{
+            background: rgba(36, 39, 59, 0.5);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            transition: all 0.3s ease;
+            margin-bottom: 2rem;
+            animation: fadeInUp 0.5s ease-out;
+        }}
+        .control-card:hover {{
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.5);
+            border-color: rgba(0, 212, 255, 0.5);
+        }}
+        .control-card .card-header {{
+            background: transparent;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 1.25rem 1.5rem;
+        }}
+        .control-card .card-header h5 {{
+            color: #ffffff;
+            font-weight: 600;
+        }}
         .control-card .card-body {{ padding: 1.5rem; }}
-        .form-control, .form-select {{ background: #000; border: 1px solid #00ff00; border-radius: 0; color: #00ff00; }}
-        .form-control:focus, .form-select:focus {{ background: #111; border-color: #ff0000; box-shadow: 0 0 8px #ff0000; color: #ff0000; }}
-        .form-control::placeholder {{ color: #444; }}
-        .form-select option {{ background: #000; color: #00ff00; }}
-        .form-label {{ color: #00ff00; }}
-        .input-group-text {{ background: #1a0000; border: 1px solid #ff0000; color: #ff0000; border-radius: 0; }}
-        .btn {{ border-radius: 0; text-transform: uppercase; font-weight: bold; transition: all 0.2s; }}
-        .btn-primary {{ background: transparent; border: 1px solid #00ff00; color: #00ff00; }}
-        .btn-primary:hover {{ background: #00ff00; color: #000; box-shadow: 0 0 15px #00ff00; }}
-        .btn-warning {{ background: transparent; border: 1px solid #ffff00; color: #ffff00; }}
-        .btn-warning:hover {{ background: #ffff00; color: #000; box-shadow: 0 0 15px #ffff00; }}
-        .btn-success {{ background: transparent; border: 1px solid #00ff00; color: #00ff00; }}
-        .btn-success:hover {{ background: #00ff00; color: #000; box-shadow: 0 0 15px #00ff00; }}
-        .btn-danger {{ background: transparent; border: 1px solid #ff0000; color: #ff0000; }}
-        .btn-danger:hover {{ background: #ff0000; color: #fff; box-shadow: 0 0 15px #ff0000; }}
-        .status-badge {{ padding: 8px 16px; font-weight: bold; letter-spacing: 1px; }}
-        .status-active {{ border: 1px solid #00ff00; color: #00ff00; background: rgba(0, 255, 0, 0.1); text-shadow: 0 0 5px #00ff00; }}
-        .status-inactive {{ border: 1px solid #ff0000; color: #ff0000; background: rgba(255, 0, 0, 0.1); }}
-        .alert-success {{ background: rgba(0, 255, 0, 0.1); border: 1px solid #00ff00; color: #00ff00; border-radius: 0; }}
-        small {{ color: #888 !important; }}
+        .form-control, .form-select {{
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            color: #e0e0e0;
+            transition: all 0.3s ease;
+        }}
+        .form-control:focus, .form-select:focus {{
+            background: rgba(0, 0, 0, 0.4);
+            border-color: #00d4ff;
+            box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.2);
+            color: #ffffff;
+        }}
+        .form-select option {{ background: #1a1a2e; color: #e0e0e0; }}
+        .input-group-text {{
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #00d4ff;
+            border-radius: 12px 0 0 12px;
+        }}
+        .btn {{
+            border-radius: 12px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            border: none;
+            padding: 0.75rem 1.5rem;
+        }}
+        .btn-primary {{ background: linear-gradient(45deg, #0099cc, #00d4ff); color: #ffffff; }}
+        .btn-primary:hover {{ transform: translateY(-2px); box-shadow: 0 4px 15px rgba(0, 212, 255, 0.3); }}
+        .btn-warning {{ background: linear-gradient(45deg, #ffc107, #ff9800); color: #1a1a2e; }}
+        .btn-warning:hover {{ transform: translateY(-2px); box-shadow: 0 4px 15px rgba(255, 193, 7, 0.3); }}
+        .btn-success {{ background: linear-gradient(45deg, #28a745, #20c997); color: #ffffff; }}
+        .btn-success:hover {{ transform: translateY(-2px); box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3); }}
+        .btn-danger {{ background: linear-gradient(45deg, #e83e8c, #dc3545); color: #ffffff; }}
+        .btn-danger:hover {{ transform: translateY(-2px); box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3); }}
+        .status-badge {{
+            padding: 8px 16px; border-radius: 20px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;
+        }}
+        .status-active {{ background: rgba(40, 167, 69, 0.2); color: #20c997; border: 1px solid #20c997; }}
+        .status-inactive {{ background: rgba(220, 53, 69, 0.2); color: #e83e8c; border: 1px solid #e83e8c; }}
+        .alert-success {{ background: rgba(40, 167, 69, 0.2); border: 1px solid #20c997; border-radius: 12px; color: #ffffff; }}
     </style>
 </head>
 <body>
     <div class="container-fluid">
         <div class="row"><div class="col-12"><div class="header-section">
-            <h1 class="text-center mb-0"><i class="fas fa-skull-crossbones me-3"></i> D.E.E.P. C.O.N.T.R.O.L</h1>
-            <p class="text-center text-muted">> EST. 2025 // SYSTEM ONLINE</p>
+            <h1 class="mb-0"><i class="fas fa-server me-3"></i>Karuta Control Matrix</h1>
+            <p class="text-muted mb-0">Hệ thống điều khiển trung tâm</p>
         </div></div></div>
         {alert_section}
         <div class="row g-4">
-            <div class="col-lg-6"><div class="control-card">
-                <div class="card-header"><h5 class="mb-0"><i class="fas fa-magic me-2"></i> > AUTO_GRAB::ACC_1</h5></div>
+            <div class="col-xl-4 col-lg-6"><div class="control-card">
+                <div class="card-header"><h5 class="mb-0"><i class="fas fa-magic me-2"></i>Auto Grab - Acc Chính 1</h5></div>
                 <div class="card-body">
-                    <div class="status-indicator mb-3"><span class="status-badge {auto_grab_status}"><i class="fas fa-broadcast-tower me-1"></i> {auto_grab_text}</span></div>
-                    <form method="POST" class="mb-4"><div class="btn-group w-100" role="group"><button name="toggle" value="on" type="submit" class="btn btn-success">INITIATE</button><button name="toggle" value="off" type="submit" class="btn btn-danger">TERMINATE</button></div></form>
-                    <div class="heart-threshold"><h6 class="mb-3">> SET_HEART_THRESHOLD:</h6><form method="POST"><div class="input-group"><span class="input-group-text"><i class="fas fa-heart-pulse text-danger"></i></span><input type="number" class="form-control" name="heart_threshold" value="{heart_threshold}" min="0"><button type="submit" class="btn btn-primary">UPDATE</button></div></form></div>
+                    <div class="status-indicator mb-3"><span class="status-badge {auto_grab_status}"><i class="fas fa-circle me-2"></i>{auto_grab_text}</span></div>
+                    <form method="POST" class="mb-4"><div class="btn-group w-100" role="group"><button name="toggle" value="on" type="submit" class="btn btn-success">Bật</button><button name="toggle" value="off" type="submit" class="btn btn-danger">Tắt</button></div></form>
+                    <h6 class="mb-3">Mức tim tiêu chuẩn</h6><form method="POST"><div class="input-group"><span class="input-group-text"><i class="fas fa-heart text-danger"></i></span><input type="number" class="form-control" name="heart_threshold" value="{heart_threshold}" min="0"><button type="submit" class="btn btn-primary">Lưu</button></div></form>
                 </div>
             </div></div>
-            <div class="col-lg-6"><div class="control-card">
-                <div class="card-header"><h5 class="mb-0"><i class="fas fa-magic me-2"></i> > AUTO_GRAB::ACC_2</h5></div>
+            <div class="col-xl-4 col-lg-6"><div class="control-card">
+                <div class="card-header"><h5 class="mb-0"><i class="fas fa-magic me-2"></i>Auto Grab - Acc Chính 2</h5></div>
                 <div class="card-body">
-                    <div class="status-indicator mb-3"><span class="status-badge {auto_grab_status_2}"><i class="fas fa-broadcast-tower me-1"></i> {auto_grab_text_2}</span></div>
-                    <form method="POST" class="mb-4"><div class="btn-group w-100" role="group"><button name="toggle_2" value="on" type="submit" class="btn btn-success">INITIATE</button><button name="toggle_2" value="off" type="submit" class="btn btn-danger">TERMINATE</button></div></form>
-                    <div class="heart-threshold"><h6 class="mb-3">> SET_HEART_THRESHOLD:</h6><form method="POST"><div class="input-group"><span class="input-group-text"><i class="fas fa-heart-pulse text-danger"></i></span><input type="number" class="form-control" name="heart_threshold_2" value="{heart_threshold_2}" min="0"><button type="submit" class="btn btn-primary">UPDATE</button></div></form></div>
+                    <div class="status-indicator mb-3"><span class="status-badge {auto_grab_status_2}"><i class="fas fa-circle me-2"></i>{auto_grab_text_2}</span></div>
+                    <form method="POST" class="mb-4"><div class="btn-group w-100" role="group"><button name="toggle_2" value="on" type="submit" class="btn btn-success">Bật</button><button name="toggle_2" value="off" type="submit" class="btn btn-danger">Tắt</button></div></form>
+                    <h6 class="mb-3">Mức tim tiêu chuẩn</h6><form method="POST"><div class="input-group"><span class="input-group-text"><i class="fas fa-heart text-danger"></i></span><input type="number" class="form-control" name="heart_threshold_2" value="{heart_threshold_2}" min="0"><button type="submit" class="btn btn-primary">Lưu</button></div></form>
                 </div>
             </div></div>
-            <div class="col-lg-6"><div class="control-card">
-                <div class="card-header"><h5 class="mb-0"><i class="fas fa-magic me-2"></i> > AUTO_GRAB::ACC_3</h5></div>
+            <div class="col-xl-4 col-lg-6"><div class="control-card">
+                <div class="card-header"><h5 class="mb-0"><i class="fas fa-magic me-2"></i>Auto Grab - Acc Chính 3</h5></div>
                 <div class="card-body">
-                    <div class="status-indicator mb-3"><span class="status-badge {auto_grab_status_3}"><i class="fas fa-broadcast-tower me-1"></i> {auto_grab_text_3}</span></div>
-                    <form method="POST" class="mb-4"><div class="btn-group w-100" role="group"><button name="toggle_3" value="on" type="submit" class="btn btn-success">INITIATE</button><button name="toggle_3" value="off" type="submit" class="btn btn-danger">TERMINATE</button></div></form>
-                    <div class="heart-threshold"><h6 class="mb-3">> SET_HEART_THRESHOLD:</h6><form method="POST"><div class="input-group"><span class="input-group-text"><i class="fas fa-heart-pulse text-danger"></i></span><input type="number" class="form-control" name="heart_threshold_3" value="{heart_threshold_3}" min="0"><button type="submit" class="btn btn-primary">UPDATE</button></div></form></div>
+                    <div class="status-indicator mb-3"><span class="status-badge {auto_grab_status_3}"><i class="fas fa-circle me-2"></i>{auto_grab_text_3}</span></div>
+                    <form method="POST" class="mb-4"><div class="btn-group w-100" role="group"><button name="toggle_3" value="on" type="submit" class="btn btn-success">Bật</button><button name="toggle_3" value="off" type="submit" class="btn btn-danger">Tắt</button></div></form>
+                    <h6 class="mb-3">Mức tim tiêu chuẩn</h6><form method="POST"><div class="input-group"><span class="input-group-text"><i class="fas fa-heart text-danger"></i></span><input type="number" class="form-control" name="heart_threshold_3" value="{heart_threshold_3}" min="0"><button type="submit" class="btn btn-primary">Lưu</button></div></form>
                 </div>
             </div></div>
-            <div class="col-lg-6"><div class="control-card">
-                <div class="card-header"><h5 class="mb-0"><i class="fas fa-cogs me-2"></i> > AUTO_WORK::SUBS</h5></div>
+            <div class="col-xl-4 col-lg-6"><div class="control-card">
+                <div class="card-header"><h5 class="mb-0"><i class="fas fa-briefcase me-2"></i>Auto Work</h5></div>
                 <div class="card-body">
-                    <div class="status-indicator mb-3"><span class="status-badge {auto_work_status}"><i class="fas fa-broadcast-tower me-1"></i> {auto_work_text}</span></div>
-                    <form method="POST" class="mb-4"><div class="btn-group w-100" role="group"><button name="auto_work_toggle" value="on" type="submit" class="btn btn-success">INITIATE</button><button name="auto_work_toggle" value="off" type="submit" class="btn btn-danger">TERMINATE</button></div></form>
+                    <div class="status-indicator mb-3"><span class="status-badge {auto_work_status}"><i class="fas fa-circle me-2"></i>{auto_work_text}</span></div>
+                    <form method="POST"><div class="btn-group w-100" role="group"><button name="auto_work_toggle" value="on" type="submit" class="btn btn-success">Bật</button><button name="auto_work_toggle" value="off" type="submit" class="btn btn-danger">Tắt</button></div></form>
                 </div>
             </div></div>
-            <div class="col-lg-6"><div class="control-card">
-                <div class="card-header"><h5 class="mb-0"><i class="fas fa-history me-2"></i> > AUTO_REBOOT::MAINS</h5></div>
+            <div class="col-xl-4 col-lg-6"><div class="control-card">
+                <div class="card-header"><h5 class="mb-0"><i class="fas fa-history me-2"></i>Tự động Reboot Acc Chính</h5></div>
                 <div class="card-body">
-                    <div class="status-indicator mb-3"><span class="status-badge {auto_reboot_status}"><i class="fas fa-broadcast-tower me-1"></i> {auto_reboot_text}</span></div>
+                    <div class="status-indicator mb-3"><span class="status-badge {auto_reboot_status}"><i class="fas fa-circle me-2"></i>{auto_reboot_text}</span></div>
                     <form method="POST">
-                        <div class="input-group mb-3">
-                            <span class="input-group-text"><i class="fas fa-hourglass-half"></i></span>
-                            <input type="number" class="form-control" name="auto_reboot_delay" value="{auto_reboot_delay}" min="60">
-                            <button type="submit" class="btn btn-primary">UPDATE_DELAY</button>
-                        </div>
-                        <div class="btn-group w-100" role="group"><button name="auto_reboot_toggle" value="on" type="submit" class="btn btn-success">INITIATE</button><button name="auto_reboot_toggle" value="off" type="submit" class="btn btn-danger">TERMINATE</button></div>
+                        <div class="input-group mb-3"><span class="input-group-text"><i class="fas fa-hourglass-half"></i></span><input type="number" class="form-control" name="auto_reboot_delay" value="{auto_reboot_delay}" min="60"><button type="submit" class="btn btn-primary">Cập nhật</button></div>
+                        <div class="btn-group w-100" role="group"><button name="auto_reboot_toggle" value="on" type="submit" class="btn btn-success">Bật</button><button name="auto_reboot_toggle" value="off" type="submit" class="btn btn-danger">Tắt</button></div>
                     </form>
                 </div>
             </div></div>
-            <div class="col-lg-6"><div class="control-card">
-                <div class="card-header"><h5 class="mb-0"><i class="fas fa-sync-alt me-2"></i> > MANUAL_REBOOT</h5></div>
+            <div class="col-xl-4 col-lg-6"><div class="control-card">
+                <div class="card-header"><h5 class="mb-0"><i class="fas fa-sync-alt me-2"></i>Reboot Thủ Công</h5></div>
                 <div class="card-body">
-                    <form method="POST">
-                        <div class="input-group">
-                            <select name="reboot_target" class="form-select">{reboot_options}</select>
-                            <button type="submit" class="btn btn-warning">EXECUTE_REBOOT</button>
-                        </div>
-                    </form>
+                    <form method="POST"><div class="input-group"><select name="reboot_target" class="form-select">{reboot_options}</select><button type="submit" class="btn btn-warning">Reboot</button></div></form>
                 </div>
             </div></div>
             <div class="col-12"><div class="control-card">
-                <div class="card-header"><h5 class="mb-0"><i class="fas fa-repeat me-2"></i> > SPAM_CONTROL</h5></div>
+                <div class="card-header"><h5 class="mb-0"><i class="fas fa-repeat me-2"></i>Spam Control</h5></div>
                 <div class="card-body">
-                    <div class="status-indicator mb-3"><span class="status-badge {spam_status}"><i class="fas fa-broadcast-tower me-1"></i> {spam_text}</span></div>
+                    <div class="status-indicator mb-3"><span class="status-badge {spam_status}"><i class="fas fa-circle me-2"></i>{spam_text}</span></div>
                     <form method="POST"><div class="row g-3">
-                        <div class="col-md-6"><label class="form-label">> PAYLOAD:</label><input type="text" name="spammsg" class="form-control" value="{spam_message}"></div>
-                        <div class="col-md-3"><label class="form-label">> DELAY (s):</label><input type="number" name="spam_delay" class="form-control" value="{spam_delay}" min="1"></div>
-                        <div class="col-md-3"><label class="form-label">> COMMAND:</label><div class="btn-group w-100" role="group"><button name="spamtoggle" value="on" type="submit" class="btn btn-success">INITIATE</button><button name="spamtoggle" value="off" type="submit" class="btn btn-danger">TERMINATE</button></div></div>
+                        <div class="col-md-6"><label class="form-label">Nội dung spam:</label><input type="text" name="spammsg" class="form-control" value="{spam_message}"></div>
+                        <div class="col-md-3"><label class="form-label">Thời gian lặp (s):</label><input type="number" name="spam_delay" class="form-control" value="{spam_delay}" min="1"></div>
+                        <div class="col-md-3"><label class="form-label">Điều khiển:</label><div class="btn-group w-100" role="group"><button name="spamtoggle" value="on" type="submit" class="btn btn-success">Bật</button><button name="spamtoggle" value="off" type="submit" class="btn btn-danger">Tắt</button></div></div>
                     </div></form>
                 </div>
             </div></div>
@@ -412,8 +440,7 @@ HTML = """
 
 @app.route("/", methods=["GET", "POST"])
 def index():
-    global auto_grab_enabled, auto_grab_enabled_2, auto_grab_enabled_3
-    global heart_threshold, heart_threshold_2, heart_threshold_3
+    global auto_grab_enabled, auto_grab_enabled_2, auto_grab_enabled_3, heart_threshold, heart_threshold_2, heart_threshold_3
     global auto_work_enabled, spam_enabled, spam_message, spam_delay
     global auto_reboot_enabled, auto_reboot_delay, auto_reboot_thread, auto_reboot_stop_event
     msg_status = ""
@@ -424,39 +451,33 @@ def index():
                 auto_reboot_toggle = request.form.get("auto_reboot_toggle")
                 if auto_reboot_toggle == "on":
                     if not auto_reboot_enabled:
-                        auto_reboot_enabled = True
-                        auto_reboot_stop_event = threading.Event()
+                        auto_reboot_enabled, auto_reboot_stop_event = True, threading.Event()
                         auto_reboot_thread = threading.Thread(target=auto_reboot_loop, daemon=True)
-                        auto_reboot_thread.start()
-                        msg_status = "Đã BẬT chế độ tự động reboot acc chính."
-                    else: msg_status = "Chế độ tự động reboot đã được bật từ trước."
+                        auto_reboot_thread.start(); msg_status = "Đã BẬT chế độ tự động reboot."
+                    else: msg_status = "Tự động reboot đã bật từ trước."
                 elif auto_reboot_toggle == "off":
                     if auto_reboot_enabled and auto_reboot_stop_event:
-                        auto_reboot_enabled = False
-                        auto_reboot_stop_event.set()
-                        auto_reboot_thread = None
+                        auto_reboot_enabled = False; auto_reboot_stop_event.set(); auto_reboot_thread = None
                         msg_status = "Đã TẮT chế độ tự động reboot."
-                    else: msg_status = "Chế độ tự động reboot chưa được bật."
+                    else: msg_status = "Tự động reboot chưa được bật."
             if "auto_reboot_delay" in request.form:
                 try:
                     delay_val = int(request.form.get("auto_reboot_delay"))
-                    if delay_val >= 60:
-                        auto_reboot_delay = delay_val
-                        msg_status = f"Đã cập nhật delay tự động reboot thành {auto_reboot_delay} giây."
-                    else: msg_status = "Lỗi: Delay phải lớn hơn hoặc bằng 60 giây."
+                    if delay_val >= 60: auto_reboot_delay = delay_val; msg_status = f"Cập nhật delay reboot thành {auto_reboot_delay} giây."
+                    else: msg_status = "Lỗi: Delay phải lớn hơn 60 giây."
                 except (ValueError, TypeError): pass
         else:
-            if 'toggle' in request.form: auto_grab_enabled = request.form['toggle'] == "on"; msg_status = f"Tự grab Acc 1 {'đã bật' if auto_grab_enabled else 'đã tắt'}"
-            if 'toggle_2' in request.form: auto_grab_enabled_2 = request.form['toggle_2'] == "on"; msg_status = f"Tự grab Acc 2 {'đã bật' if auto_grab_enabled_2 else 'đã tắt'}"
-            if 'toggle_3' in request.form: auto_grab_enabled_3 = request.form['toggle_3'] == "on"; msg_status = f"Tự grab Acc 3 {'đã bật' if auto_grab_enabled_3 else 'đã tắt'}"
+            if 'toggle' in request.form: auto_grab_enabled = request.form['toggle'] == "on"; msg_status = f"Auto Grab 1: {'Bật' if auto_grab_enabled else 'Tắt'}"
+            if 'toggle_2' in request.form: auto_grab_enabled_2 = request.form['toggle_2'] == "on"; msg_status = f"Auto Grab 2: {'Bật' if auto_grab_enabled_2 else 'Tắt'}"
+            if 'toggle_3' in request.form: auto_grab_enabled_3 = request.form['toggle_3'] == "on"; msg_status = f"Auto Grab 3: {'Bật' if auto_grab_enabled_3 else 'Tắt'}"
             if 'heart_threshold' in request.form:
-                try: heart_threshold = int(request.form['heart_threshold']); msg_status = f"Đã cập nhật mức tim Acc 1: {heart_threshold}"
+                try: heart_threshold = int(request.form['heart_threshold']); msg_status = f"Cập nhật mức tim Acc 1: {heart_threshold}"
                 except: msg_status = "Mức tim Acc 1 không hợp lệ!"
             if 'heart_threshold_2' in request.form:
-                try: heart_threshold_2 = int(request.form['heart_threshold_2']); msg_status = f"Đã cập nhật mức tim Acc 2: {heart_threshold_2}"
+                try: heart_threshold_2 = int(request.form['heart_threshold_2']); msg_status = f"Cập nhật mức tim Acc 2: {heart_threshold_2}"
                 except: msg_status = "Mức tim Acc 2 không hợp lệ!"
             if 'heart_threshold_3' in request.form:
-                try: heart_threshold_3 = int(request.form['heart_threshold_3']); msg_status = f"Đã cập nhật mức tim Acc 3: {heart_threshold_3}"
+                try: heart_threshold_3 = int(request.form['heart_threshold_3']); msg_status = f"Cập nhật mức tim Acc 3: {heart_threshold_3}"
                 except: msg_status = "Mức tim Acc 3 không hợp lệ!"
             if 'spamtoggle' in request.form:
                 spam_enabled = request.form['spamtoggle'] == "on"
@@ -468,33 +489,29 @@ def index():
             if 'auto_work_toggle' in request.form: auto_work_enabled = request.form['auto_work_toggle'] == "on"; msg_status = f"Auto Work {'đã bật' if auto_work_enabled else 'đã tắt'}"
             if 'reboot_target' in request.form: reboot_bot(request.form['reboot_target']); msg_status = f"Đã gửi yêu cầu reboot cho {request.form['reboot_target']}!"
     
-    if msg_status:
-        alert_section = f'<div class="row"><div class="col-12"><div class="alert alert-success">{msg_status}</div></div></div>'
-    else:
-        alert_section = ""
-
-    auto_grab_status, auto_grab_text = ("ONLINE", "ONLINE") if auto_grab_enabled else ("OFFLINE", "OFFLINE")
-    auto_grab_status_2, auto_grab_text_2 = ("ONLINE", "ONLINE") if auto_grab_enabled_2 else ("OFFLINE", "OFFLINE")
-    auto_grab_status_3, auto_grab_text_3 = ("ONLINE", "ONLINE") if auto_grab_enabled_3 else ("OFFLINE", "OFFLINE")
-    auto_work_status, auto_work_text = ("ACTIVE", "ACTIVE") if auto_work_enabled else ("INACTIVE", "INACTIVE")
-    auto_reboot_status, auto_reboot_text = ("ACTIVE", "ACTIVE") if auto_reboot_enabled else ("INACTIVE", "INACTIVE")
-    spam_status, spam_text = ("ACTIVE", "ACTIVE") if spam_enabled else ("INACTIVE", "INACTIVE")
-
+    alert_section = f'<div class="row"><div class="col-12"><div class="alert alert-success">{msg_status}</div></div></div>' if msg_status else ""
+    auto_grab_text = "ONLINE" if auto_grab_enabled else "OFFLINE"
+    auto_grab_text_2 = "ONLINE" if auto_grab_enabled_2 else "OFFLINE"
+    auto_grab_text_3 = "ONLINE" if auto_grab_enabled_3 else "OFFLINE"
+    auto_work_text = "ACTIVE" if auto_work_enabled else "INACTIVE"
+    auto_reboot_text = "ACTIVE" if auto_reboot_enabled else "INACTIVE"
+    spam_text = "ACTIVE" if spam_enabled else "INACTIVE"
     reboot_options = ""
-    if main_bot: reboot_options += '<option value="main_1">ACC_MAIN_1</option>'
-    if main_bot_2: reboot_options += '<option value="main_2">ACC_MAIN_2</option>'
-    if main_bot_3: reboot_options += '<option value="main_3">ACC_MAIN_3</option>'
+    if main_bot: reboot_options += '<option value="main_1">Acc Chính 1</option>'
+    if main_bot_2: reboot_options += '<option value="main_2">Acc Chính 2</option>'
+    if main_bot_3: reboot_options += '<option value="main_3">Acc Chính 3</option>'
     for i, name in enumerate(acc_names):
-        if i < len(bots): reboot_options += f'<option value="sub_{i}">ACC_SUB_{i+1} ({name})</option>'
-    acc_options = "".join(f'<option value="{i}">{name}</option>' for i, name in enumerate(acc_names) if i < len(bots))
-
+        if i < len(bots): reboot_options += f'<option value="sub_{i}">Acc Phụ {i+1} ({name})</option>'
+    
     return render_template_string(HTML.format(
-        alert_section=alert_section, auto_grab_status=auto_grab_status, auto_grab_text=auto_grab_text,
-        auto_grab_status_2=auto_grab_status_2, auto_grab_text_2=auto_grab_text_2, auto_grab_status_3=auto_grab_status_3,
-        auto_grab_text_3=auto_grab_text_3, auto_work_status=auto_work_status, auto_work_text=auto_work_text,
+        alert_section=alert_section, auto_grab_status="status-active" if auto_grab_enabled else "status-inactive", auto_grab_text=auto_grab_text,
+        auto_grab_status_2="status-active" if auto_grab_enabled_2 else "status-inactive", auto_grab_text_2=auto_grab_text_2,
+        auto_grab_status_3="status-active" if auto_grab_enabled_3 else "status-inactive", auto_grab_text_3=auto_grab_text_3,
+        auto_work_status="status-active" if auto_work_enabled else "status-inactive", auto_work_text=auto_work_text,
         heart_threshold=heart_threshold, heart_threshold_2=heart_threshold_2, heart_threshold_3=heart_threshold_3,
-        reboot_options=reboot_options, auto_reboot_status=auto_reboot_status, auto_reboot_text=auto_reboot_text,
-        auto_reboot_delay=auto_reboot_delay, acc_options=acc_options, spam_status=spam_status, spam_text=spam_text,
+        reboot_options=reboot_options, auto_reboot_status="status-active" if auto_reboot_enabled else "status-inactive",
+        auto_reboot_text=auto_reboot_text, auto_reboot_delay=auto_reboot_delay,
+        spam_status="status-active" if spam_enabled else "status-inactive", spam_text=spam_text,
         spam_message=spam_message, spam_delay=spam_delay
     ))
 
