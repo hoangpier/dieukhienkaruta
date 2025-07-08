@@ -1,3 +1,5 @@
-python-dotenv
 discum
+requests
 flask
+python-dotenv
+waitress
