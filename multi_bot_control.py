@@ -1,4 +1,4 @@
-# multi_bot_control_final.py
+# multi_bot_control_fixed.py
 import discum
 import threading
 import time
@@ -47,28 +47,28 @@ def reboot_bot(target_id):
     with bots_lock:
         print(f"[Reboot] Nhận được yêu cầu reboot cho target: {target_id}")
         
-        if target_id == 'main_1' and main_bot:
+        if target_id == 'main_1' and main_token:
             print("[Reboot] Đang xử lý Acc Chính 1...")
             try:
-                main_bot.gateway.close()
+                if main_bot: main_bot.gateway.close()
             except Exception as e:
                 print(f"[Reboot] Lỗi khi đóng Acc Chính 1: {e}")
             main_bot = create_bot(main_token, is_main=True)
             print("[Reboot] Acc Chính 1 đã được khởi động lại.")
 
-        elif target_id == 'main_2' and main_bot_2:
+        elif target_id == 'main_2' and main_token_2:
             print("[Reboot] Đang xử lý Acc Chính 2...")
             try:
-                main_bot_2.gateway.close()
+                if main_bot_2: main_bot_2.gateway.close()
             except Exception as e:
                 print(f"[Reboot] Lỗi khi đóng Acc Chính 2: {e}")
             main_bot_2 = create_bot(main_token_2, is_main_2=True)
             print("[Reboot] Acc Chính 2 đã được khởi động lại.")
         
-        elif target_id == 'main_3' and main_bot_3:
+        elif target_id == 'main_3' and main_token_3:
             print("[Reboot] Đang xử lý Acc Chính 3...")
             try:
-                main_bot_3.gateway.close()
+                if main_bot_3: main_bot_3.gateway.close()
             except Exception as e:
                 print(f"[Reboot] Lỗi khi đóng Acc Chính 3: {e}")
             main_bot_3 = create_bot(main_token_3, is_main_3=True)
@@ -77,16 +77,22 @@ def reboot_bot(target_id):
         elif target_id.startswith('sub_'):
             try:
                 index = int(target_id.split('_')[1])
-                if 0 <= index < len(bots):
-                    print(f"[Reboot] Đang xử lý Acc Phụ {index}...")
+                if 0 <= index < len(tokens):
+                    print(f"[Reboot] Đang xử lý Acc Phụ {index+1}...")
                     try:
-                        bots[index].gateway.close()
+                        # Ensure the bot exists at the index before trying to close it
+                        if index < len(bots) and bots[index]:
+                            bots[index].gateway.close()
                     except Exception as e:
-                        print(f"[Reboot] Lỗi khi đóng Acc Phụ {index}: {e}")
+                        print(f"[Reboot] Lỗi khi đóng Acc Phụ {index+1}: {e}")
                     
                     token_to_reboot = tokens[index]
-                    bots[index] = create_bot(token_to_reboot.strip())
-                    print(f"[Reboot] Acc Phụ {index} đã được khởi động lại.")
+                    new_bot = create_bot(token_to_reboot.strip())
+                    if index < len(bots):
+                        bots[index] = new_bot
+                    else: # This case should ideally not happen if logic is correct
+                        bots.append(new_bot)
+                    print(f"[Reboot] Acc Phụ {index+1} đã được khởi động lại.")
                 else:
                     print(f"[Reboot] Index không hợp lệ: {index}")
             except (ValueError, IndexError) as e:
@@ -101,12 +107,16 @@ def create_bot(token, is_main=False, is_main_2=False, is_main_3=False):
     def on_ready(resp):
         if resp.event.ready:
             try:
-                user_id = resp.raw["user"]["id"]
-                bot_type = "(Acc chính)" if is_main else "(Acc chính 2)" if is_main_2 else "(Acc chính 3)" if is_main_3 else ""
-                print(f"Đã đăng nhập: {user_id} {bot_type}")
+                user_info = bot.gateway.session.user
+                user_id = user_info['id']
+                username = user_info['username']
+                bot_type = "(Acc chính 1)" if is_main else "(Acc chính 2)" if is_main_2 else "(Acc chính 3)" if is_main_3 else "(Acc phụ)"
+                print(f"Đã đăng nhập: {username} ({user_id}) {bot_type}")
             except Exception as e:
-                print(f"Lỗi lấy user_id: {e}")
+                print(f"Lỗi lấy thông tin user: {e}")
 
+    # --- ĐỊNH NGHĨA CÁC HÀM XỬ LÝ MESSAGE CHO TỪNG BOT ---
+    # (Giữ nguyên các hàm on_message cho is_main, is_main_2, is_main_3)
     if is_main:
         @bot.gateway.command
         def on_message(resp):
@@ -271,11 +281,14 @@ def create_bot(token, is_main=False, is_main_2=False, is_main_3=False):
                                             threading.Timer(delay, grab_3).start()
                                     break
                         threading.Thread(target=read_karibbit_3).start()
-
+    
     threading.Thread(target=bot.gateway.run, daemon=True).start()
     return bot
 
+# --- CÁC HÀM XỬ LÝ VÒNG LẶP NỀN (ĐÃ CẢI TIẾN) ---
+
 def run_work_bot(token, acc_index):
+    # (Hàm này giữ nguyên, vì nó là một tiến trình ngắn hạn và đã có timeout)
     bot = discum.Client(token=token, log={"console": False, "file": False})
     headers = {"Authorization": token, "Content-Type": "application/json"}
     step = {"value": 0}
@@ -356,80 +369,149 @@ def run_work_bot(token, acc_index):
     timeout = time.time() + 90
     while step["value"] != 3 and time.time() < timeout:
         time.sleep(1)
+    if step["value"] != 3:
+        print(f"[Work Acc {acc_index}] Timeout, không hoàn thành công việc.")
     bot.gateway.close()
     print(f"[Work Acc {acc_index}] Đã hoàn thành, chuẩn bị tới acc tiếp theo.")
 
 def auto_work_loop():
     global auto_work_enabled
     while True:
-        if auto_work_enabled:
-            with bots_lock:
-                current_tokens = tokens.copy()
-            for i, token in enumerate(current_tokens):
-                if token.strip():
-                    print(f"[Auto Work] Đang chạy acc {i+1}...")
-                    run_work_bot(token.strip(), i+1)
-                    print(f"[Auto Work] Acc {i+1} xong, chờ {work_delay_between_acc} giây...")
-                    time.sleep(work_delay_between_acc)
-            print(f"[Auto Work] Hoàn thành tất cả acc, chờ {work_delay_after_all} giây để lặp lại...")
-            time.sleep(work_delay_after_all)
-        else:
-            time.sleep(10)
+        try:
+            if auto_work_enabled:
+                with bots_lock:
+                    current_tokens = tokens.copy()
+                
+                if not current_tokens:
+                    print("[Auto Work] Không có token nào cho acc phụ. Tạm dừng 10 phút.")
+                    time.sleep(600)
+                    continue
+
+                for i, token in enumerate(current_tokens):
+                    if not auto_work_enabled: # Check again in case it was disabled during the loop
+                        print("[Auto Work] Chức năng đã bị tắt. Dừng chu kỳ hiện tại.")
+                        break
+                    if token.strip():
+                        print(f"\n[Auto Work] >>> Đang chạy acc {i+1}/{len(current_tokens)}... <<<")
+                        run_work_bot(token.strip(), i+1)
+                        print(f"[Auto Work] Acc {i+1} xong, chờ {work_delay_between_acc} giây...")
+                        time.sleep(work_delay_between_acc)
+                
+                if auto_work_enabled:
+                    print(f"\n[Auto Work] === Hoàn thành tất cả acc, chờ {work_delay_after_all / 60} phút để lặp lại... ===\n")
+                    time.sleep(work_delay_after_all)
+            else:
+                time.sleep(10) # Sleep when disabled
+        except Exception as e:
+            print(f"[LỖI NGHIÊM TRỌNG] trong auto_work_loop: {e}")
+            print("[Auto Work] Sẽ thử lại sau 60 giây...")
+            time.sleep(60)
 
 def auto_reboot_loop():
     global auto_reboot_stop_event
     print("[Auto Reboot] Luồng tự động reboot đã bắt đầu.")
     while not auto_reboot_stop_event.is_set():
-        print(f"[Auto Reboot] Bắt đầu chu kỳ reboot. Chờ {auto_reboot_delay} giây cho chu kỳ tiếp theo...")
-        interrupted = auto_reboot_stop_event.wait(timeout=auto_reboot_delay)
-        if interrupted:
-            break
-        print("[Auto Reboot] Hết thời gian chờ, tiến hành reboot 3 tài khoản chính.")
-        if main_bot:
-            reboot_bot('main_1')
-            time.sleep(5)
-        if main_bot_2:
-            reboot_bot('main_2')
-            time.sleep(5)
-        if main_bot_3:
-            reboot_bot('main_3')
-    print("[Auto Reboot] Luồng tự động reboot đã dừng.")
+        try:
+            print(f"[Auto Reboot] Bắt đầu chu kỳ reboot. Chờ {auto_reboot_delay / 3600:.2f} giờ cho chu kỳ tiếp theo...")
+            interrupted = auto_reboot_stop_event.wait(timeout=auto_reboot_delay)
+            if interrupted:
+                break
+            
+            print("[Auto Reboot] Hết thời gian chờ, tiến hành reboot toàn bộ các tài khoản.")
+            
+            # Reboot Acc Chính
+            if main_bot: reboot_bot('main_1'); time.sleep(5)
+            if main_bot_2: reboot_bot('main_2'); time.sleep(5)
+            if main_bot_3: reboot_bot('main_3'); time.sleep(5)
 
+            # Reboot Acc Phụ
+            num_sub_bots = 0
+            with bots_lock:
+                num_sub_bots = len(bots)
+            
+            if num_sub_bots > 0:
+                print("[Auto Reboot] Tiến hành reboot các tài khoản phụ...")
+                for i in range(num_sub_bots):
+                    if auto_reboot_stop_event.is_set(): break
+                    print(f"[Auto Reboot] Đang reboot Acc Phụ {i+1}...")
+                    reboot_bot(f'sub_{i}')
+                    time.sleep(5)
+            
+            print("[Auto Reboot] Chu kỳ reboot hoàn tất.")
+
+        except Exception as e:
+            print(f"[LỖI NGHIÊM TRỌNG] trong auto_reboot_loop: {e}")
+            print("[Auto Reboot] Sẽ thử lại sau 5 phút...")
+            time.sleep(300)
+
+    print("[Auto Reboot] Luồng tự động reboot đã dừng.")
+    
 def spam_loop():
     global spam_enabled, spam_message, spam_delay
     while True:
-        if spam_enabled and spam_message:
-            all_bots_to_spam = []
-            all_bot_names = []
-            with bots_lock:
-                if main_bot:
-                    all_bots_to_spam.append(main_bot)
-                    all_bot_names.append("Acc Chính 1")
-                if main_bot_2:
-                    all_bots_to_spam.append(main_bot_2)
-                    all_bot_names.append("Acc Chính 2")
-                if main_bot_3:
-                    all_bots_to_spam.append(main_bot_3)
-                    all_bot_names.append("Acc Chính 3")
-                all_bots_to_spam.extend(bots)
-                all_bot_names.extend(acc_names[:len(bots)])
-            for idx, bot in enumerate(all_bots_to_spam):
-                try:
-                    bot_name = all_bot_names[idx]
-                    bot.sendMessage(spam_channel_id, spam_message)
-                    print(f"[{bot_name}] đã gửi: {spam_message}")
-                    time.sleep(2)
-                except Exception as e:
-                    print(f"Lỗi gửi spam từ {all_bot_names[idx]}: {e}")
-        time.sleep(spam_delay)
+        try:
+            if spam_enabled and spam_message:
+                all_bots_to_spam = []
+                all_bot_names = []
+                with bots_lock:
+                    if main_bot: all_bots_to_spam.append(main_bot); all_bot_names.append("Acc Chính 1")
+                    if main_bot_2: all_bots_to_spam.append(main_bot_2); all_bot_names.append("Acc Chính 2")
+                    if main_bot_3: all_bots_to_spam.append(main_bot_3); all_bot_names.append("Acc Chính 3")
+                    all_bots_to_spam.extend(bots)
+                    all_bot_names.extend(acc_names[:len(bots)])
 
-def keep_alive():
+                for idx, bot in enumerate(all_bots_to_spam):
+                    if not spam_enabled: break # Stop if disabled mid-spam
+                    try:
+                        bot_name = all_bot_names[idx]
+                        bot.sendMessage(spam_channel_id, spam_message)
+                        print(f"[{bot_name}] đã gửi: {spam_message}")
+                        time.sleep(2) # Delay between each account
+                    except Exception as e:
+                        print(f"Lỗi gửi spam từ {all_bot_names[idx]}: {e}")
+            time.sleep(spam_delay)
+        except Exception as e:
+            print(f"[LỖI NGHIÊM TRỌNG] trong spam_loop: {e}")
+            print("[Spam] Sẽ thử lại sau 60 giây...")
+            time.sleep(60)
+
+def health_check_loop():
+    """Periodically checks if bots are connected and reboots them if not."""
+    time.sleep(60) # Initial delay
     while True:
         try:
-            time.sleep(random.randint(60, 120))
-        except:
-            pass
+            print("[Health Check] Bắt đầu kiểm tra trạng thái các bot...")
+            with bots_lock:
+                # Check main bots
+                if main_bot and not main_bot.gateway.READY:
+                    print("[Health Check] ‼️ Acc Chính 1 mất kết nối. Đang reboot...")
+                    reboot_bot('main_1')
+                    time.sleep(10)
+                
+                if main_bot_2 and not main_bot_2.gateway.READY:
+                    print("[Health Check] ‼️ Acc Chính 2 mất kết nối. Đang reboot...")
+                    reboot_bot('main_2')
+                    time.sleep(10)
 
+                if main_bot_3 and not main_bot_3.gateway.READY:
+                    print("[Health Check] ‼️ Acc Chính 3 mất kết nối. Đang reboot...")
+                    reboot_bot('main_3')
+                    time.sleep(10)
+
+                # Check sub bots
+                for i, bot in enumerate(bots):
+                    if bot and not bot.gateway.READY:
+                        print(f"[Health Check] ‼️ Acc Phụ {i+1} mất kết nối. Đang reboot...")
+                        reboot_bot(f'sub_{i}')
+                        time.sleep(10)
+            
+            print("[Health Check] Kiểm tra hoàn tất. Chu kỳ tiếp theo sau 5 phút.")
+        except Exception as e:
+            print(f"[LỖI NGHIÊM TRỌNG] trong health_check_loop: {e}")
+        
+        time.sleep(300) # Check every 5 minutes
+
+# --- FLASK WEB SERVER ---
 app = Flask(__name__)
 HTML = """
 <!DOCTYPE html>
@@ -597,125 +679,208 @@ def index():
     msg_status = ""
 
     if request.method == "POST":
-        if "auto_reboot_toggle" in request.form or "auto_reboot_delay" in request.form:
-            if "auto_reboot_toggle" in request.form:
-                auto_reboot_toggle = request.form.get("auto_reboot_toggle")
-                if auto_reboot_toggle == "on":
+        # Tách riêng logic xử lý form để tránh nhầm lẫn
+        form_data = request.form.to_dict()
+
+        if "message" in form_data and form_data["message"]:
+            with bots_lock:
+                # Gửi tin nhắn từ acc phụ
+                for idx, bot in enumerate(bots):
+                    try:
+                        threading.Timer(2 * idx, bot.sendMessage, args=(other_channel_id, form_data['message'])).start()
+                    except Exception as e:
+                        print(f"Lỗi gửi tin nhắn từ acc phụ {idx+1}: {e}")
+            msg_status = "Đã gửi tin nhắn thủ công từ các acc phụ!"
+        
+        elif "quickmsg" in form_data:
+            with bots_lock:
+                for idx, bot in enumerate(bots):
+                    try:
+                        threading.Timer(2 * idx, bot.sendMessage, args=(other_channel_id, form_data['quickmsg'])).start()
+                    except Exception as e:
+                        print(f"Lỗi gửi lệnh nhanh từ acc phụ {idx+1}: {e}")
+            msg_status = f"Đã gửi lệnh nhanh '{form_data['quickmsg']}' từ các acc phụ!"
+        
+        elif "toggle" in form_data:
+            auto_grab_enabled = form_data['toggle'] == "on"
+            msg_status = f"Auto Grab Acc 1 đã được {'BẬT' if auto_grab_enabled else 'TẮT'}."
+        
+        elif "toggle_2" in form_data:
+            auto_grab_enabled_2 = form_data['toggle_2'] == "on"
+            msg_status = f"Auto Grab Acc 2 đã được {'BẬT' if auto_grab_enabled_2 else 'TẮT'}."
+
+        elif "toggle_3" in form_data:
+            auto_grab_enabled_3 = form_data['toggle_3'] == "on"
+            msg_status = f"Auto Grab Acc 3 đã được {'BẬT' if auto_grab_enabled_3 else 'TẮT'}."
+
+        elif "heart_threshold" in form_data:
+            try:
+                heart_threshold = int(form_data['heart_threshold'])
+                msg_status = f"Đã cập nhật mức tim Acc 1 thành: {heart_threshold}"
+            except ValueError:
+                msg_status = "Lỗi: Mức tim Acc 1 không hợp lệ!"
+
+        elif "heart_threshold_2" in form_data:
+            try:
+                heart_threshold_2 = int(form_data['heart_threshold_2'])
+                msg_status = f"Đã cập nhật mức tim Acc 2 thành: {heart_threshold_2}"
+            except ValueError:
+                msg_status = "Lỗi: Mức tim Acc 2 không hợp lệ!"
+        
+        elif "heart_threshold_3" in form_data:
+            try:
+                heart_threshold_3 = int(form_data['heart_threshold_3'])
+                msg_status = f"Đã cập nhật mức tim Acc 3 thành: {heart_threshold_3}"
+            except ValueError:
+                msg_status = "Lỗi: Mức tim Acc 3 không hợp lệ!"
+        
+        elif "auto_work_toggle" in form_data:
+            auto_work_enabled = form_data['auto_work_toggle'] == "on"
+            msg_status = f"Auto Work đã được {'BẬT' if auto_work_enabled else 'TẮT'}."
+
+        elif "reboot_target" in form_data:
+            target = form_data['reboot_target']
+            reboot_bot(target)
+            msg_status = f"Đã gửi yêu cầu reboot cho {target}!"
+
+        elif "auto_reboot_toggle" in form_data or "auto_reboot_delay" in form_data:
+            if "auto_reboot_delay" in form_data and form_data.get("auto_reboot_delay"):
+                try:
+                    delay_val = int(form_data["auto_reboot_delay"])
+                    if delay_val >= 60:
+                        auto_reboot_delay = delay_val
+                        msg_status = f"Đã cập nhật delay tự động reboot thành {auto_reboot_delay} giây."
+                    else:
+                        msg_status = "Lỗi: Delay phải lớn hơn hoặc bằng 60 giây."
+                except (ValueError, TypeError):
+                    msg_status = "Lỗi: Giá trị delay không hợp lệ."
+            
+            if "auto_reboot_toggle" in form_data:
+                toggle_val = form_data["auto_reboot_toggle"]
+                if toggle_val == "on":
                     if not auto_reboot_enabled:
                         auto_reboot_enabled = True
                         auto_reboot_stop_event = threading.Event()
                         auto_reboot_thread = threading.Thread(target=auto_reboot_loop, daemon=True)
                         auto_reboot_thread.start()
-                        msg_status = "Đã BẬT chế độ tự động reboot acc chính."
-                    else: msg_status = "Chế độ tự động reboot đã được bật từ trước."
-                elif auto_reboot_toggle == "off":
+                        msg_status = "Đã BẬT chế độ tự động reboot."
+                    else:
+                        msg_status = "Chế độ tự động reboot đã được bật từ trước."
+                elif toggle_val == "off":
                     if auto_reboot_enabled and auto_reboot_stop_event:
                         auto_reboot_enabled = False
                         auto_reboot_stop_event.set()
                         auto_reboot_thread = None
                         msg_status = "Đã TẮT chế độ tự động reboot."
-                    else: msg_status = "Chế độ tự động reboot chưa được bật."
-            if "auto_reboot_delay" in request.form:
-                try:
-                    delay_val = int(request.form.get("auto_reboot_delay"))
-                    if delay_val >= 60:
-                        auto_reboot_delay = delay_val
-                        msg_status = f"Đã cập nhật delay tự động reboot thành {auto_reboot_delay} giây."
-                    else: msg_status = "Lỗi: Delay phải lớn hơn hoặc bằng 60 giây."
-                except (ValueError, TypeError): pass # Ignore if toggle is also pressed
-        else:
-            if 'message' in request.form:
-                 with bots_lock:
-                    for idx, bot in enumerate(bots):
-                        try: threading.Timer(2 * idx, bot.sendMessage, args=(other_channel_id, request.form['message'])).start()
-                        except Exception as e: print(f"Lỗi gửi tin nhắn: {e}")
-                 msg_status = "Đã gửi thủ công thành công!"
-            if 'quickmsg' in request.form:
-                 with bots_lock:
-                    for idx, bot in enumerate(bots):
-                        try: threading.Timer(2 * idx, bot.sendMessage, args=(other_channel_id, request.form['quickmsg'])).start()
-                        except Exception as e: print(f"Lỗi gửi tin nhắn: {e}")
-                 msg_status = f"Đã gửi lệnh {request.form['quickmsg']} thành công!"
-            if 'toggle' in request.form: auto_grab_enabled = request.form['toggle'] == "on"; msg_status = f"Tự grab Acc 1 {'đã bật' if auto_grab_enabled else 'đã tắt'}"
-            if 'toggle_2' in request.form: auto_grab_enabled_2 = request.form['toggle_2'] == "on"; msg_status = f"Tự grab Acc 2 {'đã bật' if auto_grab_enabled_2 else 'đã tắt'}"
-            if 'toggle_3' in request.form: auto_grab_enabled_3 = request.form['toggle_3'] == "on"; msg_status = f"Tự grab Acc 3 {'đã bật' if auto_grab_enabled_3 else 'đã tắt'}"
-            if 'heart_threshold' in request.form:
-                try: heart_threshold = int(request.form['heart_threshold']); msg_status = f"Đã cập nhật mức tim Acc 1: {heart_threshold}"
-                except: msg_status = "Mức tim Acc 1 không hợp lệ!"
-            if 'heart_threshold_2' in request.form:
-                try: heart_threshold_2 = int(request.form['heart_threshold_2']); msg_status = f"Đã cập nhật mức tim Acc 2: {heart_threshold_2}"
-                except: msg_status = "Mức tim Acc 2 không hợp lệ!"
-            if 'heart_threshold_3' in request.form:
-                try: heart_threshold_3 = int(request.form['heart_threshold_3']); msg_status = f"Đã cập nhật mức tim Acc 3: {heart_threshold_3}"
-                except: msg_status = "Mức tim Acc 3 không hợp lệ!"
-            if 'send_codes' in request.form:
-                acc_index, delay, prefix, codes = request.form.get("acc_index"), request.form.get("delay"), request.form.get("prefix"), request.form.get("codes")
-                if acc_index and delay and codes:
-                    try:
-                        acc_idx, delay_val, codes_list = int(acc_index), float(delay), codes.split(",")
-                        if acc_idx < len(bots):
-                            with bots_lock:
-                                for i, code in enumerate(codes_list):
-                                    if code.strip():
-                                        final_msg = f"{prefix} {code.strip()}" if prefix else code.strip()
-                                        try: threading.Timer(delay_val * i, bots[acc_idx].sendMessage, args=(other_channel_id, final_msg)).start()
-                                        except Exception as e: print(f"Lỗi gửi mã: {e}")
-                        msg_status = "Đã bắt đầu gửi mã!"
-                    except Exception as e: print(f"Lỗi xử lý codes: {e}")
-            if 'spamtoggle' in request.form:
-                spam_enabled = request.form['spamtoggle'] == "on"
-                spam_message = request.form.get("spammsg", "").strip()
-                if 'spam_delay' in request.form:
-                    try: spam_delay = int(request.form['spam_delay'])
-                    except: pass
-                msg_status = f"Spam {'đã bật' if spam_enabled else 'đã tắt'}"
-            if 'auto_work_toggle' in request.form: auto_work_enabled = request.form['auto_work_toggle'] == "on"; msg_status = f"Auto Work {'đã bật' if auto_work_enabled else 'đã tắt'}"
-            if 'reboot_target' in request.form: reboot_bot(request.form['reboot_target']); msg_status = f"Đã gửi yêu cầu reboot cho {request.form['reboot_target']}!"
-    
-    if msg_status:
-        alert_section = f'<div class="row"><div class="col-12"><div class="alert alert-success">{msg_status}</div></div></div>'
-    else:
-        alert_section = ""
+                    else:
+                        msg_status = "Chế độ tự động reboot chưa được bật."
 
-    auto_grab_status, auto_grab_text = ("status-active", "Đang bật") if auto_grab_enabled else ("status-inactive", "Đang tắt")
-    auto_grab_status_2, auto_grab_text_2 = ("status-active", "Đang bật") if auto_grab_enabled_2 else ("status-inactive", "Đang tắt")
-    auto_grab_status_3, auto_grab_text_3 = ("status-active", "Đang bật") if auto_grab_enabled_3 else ("status-inactive", "Đang tắt")
-    auto_work_status, auto_work_text = ("status-active", "Đang bật") if auto_work_enabled else ("status-inactive", "Đang tắt")
-    auto_reboot_status, auto_reboot_text = ("status-active", "Đang bật") if auto_reboot_enabled else ("status-inactive", "Đang tắt")
-    spam_status, spam_text = ("status-active", "Đang bật") if spam_enabled else ("status-inactive", "Đang tắt")
+        elif "spamtoggle" in form_data:
+            spam_enabled = form_data['spamtoggle'] == "on"
+            spam_message = form_data.get("spammsg", spam_message).strip()
+            if spam_enabled and not spam_message:
+                msg_status = "Lỗi: Không thể bật spam với nội dung rỗng."
+                spam_enabled = False
+            else:
+                try:
+                    spam_delay_val = int(form_data.get('spam_delay', spam_delay))
+                    if spam_delay_val > 0:
+                        spam_delay = spam_delay_val
+                    else:
+                        spam_delay = 10 # default
+                except (ValueError, TypeError):
+                    pass # Keep old value
+                msg_status = f"Spam đã được {'BẬT' if spam_enabled else 'TẮT'}."
+        
+        elif 'send_codes' in form_data:
+            acc_index, delay, prefix, codes = form_data.get("acc_index"), form_data.get("delay"), form_data.get("prefix"), form_data.get("codes")
+            if acc_index is not None and delay and codes:
+                try:
+                    acc_idx = int(acc_index)
+                    delay_val = float(delay)
+                    codes_list = [c.strip() for c in codes.split(",") if c.strip()]
+                    
+                    with bots_lock:
+                        if 0 <= acc_idx < len(bots):
+                            target_bot = bots[acc_idx]
+                            for i, code in enumerate(codes_list):
+                                final_msg = f"{prefix} {code}" if prefix else code
+                                threading.Timer(delay_val * i, target_bot.sendMessage, args=(other_channel_id, final_msg)).start()
+                            msg_status = f"Đã bắt đầu gửi {len(codes_list)} mã cho Acc Phụ {acc_idx + 1}!"
+                        else:
+                            msg_status = "Lỗi: Index của Acc Phụ không hợp lệ."
+                except Exception as e:
+                    msg_status = f"Lỗi xử lý gửi mã: {e}"
+                    print(f"Lỗi xử lý codes: {e}")
+
+    # --- FORMAT HTML RESPONSE ---
+    alert_section = f'<div class="row"><div class="col-12"><div class="alert alert-success">{msg_status}</div></div></div>' if msg_status else ""
 
     reboot_options = ""
     if main_bot: reboot_options += '<option value="main_1">Acc Chính 1</option>'
     if main_bot_2: reboot_options += '<option value="main_2">Acc Chính 2</option>'
     if main_bot_3: reboot_options += '<option value="main_3">Acc Chính 3</option>'
-    for i, name in enumerate(acc_names):
-        if i < len(bots): reboot_options += f'<option value="sub_{i}">Acc Phụ {i+1} ({name})</option>'
-    acc_options = "".join(f'<option value="{i}">{name}</option>' for i, name in enumerate(acc_names) if i < len(bots))
+    for i in range(len(bots)):
+        name = acc_names[i] if i < len(acc_names) else f"Phụ {i+1}"
+        reboot_options += f'<option value="sub_{i}">Acc {name}</option>'
+    
+    acc_options = "".join(f'<option value="{i}">{acc_names[i] if i < len(acc_names) else f"Phụ {i+1}"}</option>' for i in range(len(bots)))
 
     return render_template_string(HTML.format(
-        alert_section=alert_section, auto_grab_status=auto_grab_status, auto_grab_text=auto_grab_text,
-        auto_grab_status_2=auto_grab_status_2, auto_grab_text_2=auto_grab_text_2, auto_grab_status_3=auto_grab_status_3,
-        auto_grab_text_3=auto_grab_text_3, auto_work_status=auto_work_status, auto_work_text=auto_work_text,
-        heart_threshold=heart_threshold, heart_threshold_2=heart_threshold_2, heart_threshold_3=heart_threshold_3,
-        reboot_options=reboot_options, auto_reboot_status=auto_reboot_status, auto_reboot_text=auto_reboot_text,
-        auto_reboot_delay=auto_reboot_delay, acc_options=acc_options, spam_status=spam_status, spam_text=spam_text,
-        spam_message=spam_message, spam_delay=spam_delay
+        alert_section=alert_section,
+        auto_grab_status="status-active" if auto_grab_enabled else "status-inactive",
+        auto_grab_text="Đang bật" if auto_grab_enabled else "Đang tắt",
+        auto_grab_status_2="status-active" if auto_grab_enabled_2 else "status-inactive",
+        auto_grab_text_2="Đang bật" if auto_grab_enabled_2 else "Đang tắt",
+        auto_grab_status_3="status-active" if auto_grab_enabled_3 else "status-inactive",
+        auto_grab_text_3="Đang bật" if auto_grab_enabled_3 else "Đang tắt",
+        auto_work_status="status-active" if auto_work_enabled else "status-inactive",
+        auto_work_text="Đang bật" if auto_work_enabled else "Đang tắt",
+        auto_reboot_status="status-active" if auto_reboot_enabled else "status-inactive",
+        auto_reboot_text="Đang bật" if auto_reboot_enabled else "Đang tắt",
+        spam_status="status-active" if spam_enabled else "status-inactive",
+        spam_text="Đang bật" if spam_enabled else "Đang tắt",
+        heart_threshold=heart_threshold,
+        heart_threshold_2=heart_threshold_2,
+        heart_threshold_3=heart_threshold_3,
+        auto_reboot_delay=auto_reboot_delay,
+        spam_message=spam_message,
+        spam_delay=spam_delay,
+        reboot_options=reboot_options,
+        acc_options=acc_options
     ))
 
 if __name__ == "__main__":
-    print("Đang khởi tạo các bot...")
+    print("="*40)
+    print(">> KHỞI TẠO HỆ THỐNG BOT KARUTA DEEP <<")
+    print("="*40)
+    
     with bots_lock:
+        print("\n[Init] Đang khởi tạo các bot...")
         if main_token: main_bot = create_bot(main_token, is_main=True)
         if main_token_2: main_bot_2 = create_bot(main_token_2, is_main_2=True)
         if main_token_3: main_bot_3 = create_bot(main_token_3, is_main_3=True)
+        
+        # Create sub-bots and store them in the list
+        temp_bots = []
         for token in tokens:
-            if token.strip(): bots.append(create_bot(token.strip()))
-    print("Tất cả các bot đã được khởi tạo.")
-    print("Đang khởi tạo các luồng nền...")
+            if token.strip():
+                temp_bots.append(create_bot(token.strip()))
+        bots.extend(temp_bots)
+
+    time.sleep(5) # Wait for bots to connect
+    print("\n[Init] Tất cả các bot đã được khởi tạo.")
+
+    print("\n[Init] Đang khởi tạo các luồng nền...")
     threading.Thread(target=spam_loop, daemon=True).start()
-    threading.Thread(target=keep_alive, daemon=True).start()
     threading.Thread(target=auto_work_loop, daemon=True).start()
-    print("Các luồng nền đã sẵn sàng.")
+    threading.Thread(target=health_check_loop, daemon=True).start() # Thêm luồng health check
+    print("[Init] Các luồng nền đã sẵn sàng.")
+
     port = int(os.environ.get("PORT", 8080))
-    print(f"Khởi động Web Server tại cổng {port}...")
-    app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
+    print(f"\n[Init] Khởi động Web Server tại: http://0.0.0.0:{port}")
+    print("\n>> HỆ THỐNG SẴN SÀNG <<\n")
+    
+    # Use waitress for production instead of Flask's debug server
+    from waitress import serve
+    serve(app, host="0.0.0.0", port=port)
