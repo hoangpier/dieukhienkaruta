@@ -41,22 +41,56 @@ auto_reboot_stop_event = None
 bots_lock = threading.Lock()
 
 def reboot_bot(target_id):
+    """Khởi động lại một bot dựa trên ID định danh của nó."""
     global main_bot, main_bot_2, main_bot_3, bots
+
     with bots_lock:
         print(f"[Reboot] Nhận được yêu cầu reboot cho target: {target_id}")
+        
         if target_id == 'main_1' and main_bot:
-            print("[Reboot] Đang xử lý Acc Chính 1..."); try: main_bot.gateway.close(); except Exception as e: print(f"[Reboot] Lỗi khi đóng Acc Chính 1: {e}"); main_bot = create_bot(main_token, is_main=True); print("[Reboot] Acc Chính 1 đã được khởi động lại.")
+            print("[Reboot] Đang xử lý Acc Chính 1...")
+            try:
+                main_bot.gateway.close()
+            except Exception as e:
+                print(f"[Reboot] Lỗi khi đóng Acc Chính 1: {e}")
+            main_bot = create_bot(main_token, is_main=True)
+            print("[Reboot] Acc Chính 1 đã được khởi động lại.")
+
         elif target_id == 'main_2' and main_bot_2:
-            print("[Reboot] Đang xử lý Acc Chính 2..."); try: main_bot_2.gateway.close(); except Exception as e: print(f"[Reboot] Lỗi khi đóng Acc Chính 2: {e}"); main_bot_2 = create_bot(main_token_2, is_main_2=True); print("[Reboot] Acc Chính 2 đã được khởi động lại.")
+            print("[Reboot] Đang xử lý Acc Chính 2...")
+            try:
+                main_bot_2.gateway.close()
+            except Exception as e:
+                print(f"[Reboot] Lỗi khi đóng Acc Chính 2: {e}")
+            main_bot_2 = create_bot(main_token_2, is_main_2=True)
+            print("[Reboot] Acc Chính 2 đã được khởi động lại.")
+        
         elif target_id == 'main_3' and main_bot_3:
-            print("[Reboot] Đang xử lý Acc Chính 3..."); try: main_bot_3.gateway.close(); except Exception as e: print(f"[Reboot] Lỗi khi đóng Acc Chính 3: {e}"); main_bot_3 = create_bot(main_token_3, is_main_3=True); print("[Reboot] Acc Chính 3 đã được khởi động lại.")
+            print("[Reboot] Đang xử lý Acc Chính 3...")
+            try:
+                main_bot_3.gateway.close()
+            except Exception as e:
+                print(f"[Reboot] Lỗi khi đóng Acc Chính 3: {e}")
+            main_bot_3 = create_bot(main_token_3, is_main_3=True)
+            print("[Reboot] Acc Chính 3 đã được khởi động lại.")
+
         elif target_id.startswith('sub_'):
             try:
                 index = int(target_id.split('_')[1])
                 if 0 <= index < len(bots):
-                    print(f"[Reboot] Đang xử lý Acc Phụ {index}..."); try: bots[index].gateway.close(); except Exception as e: print(f"[Reboot] Lỗi khi đóng Acc Phụ {index}: {e}"); token_to_reboot = tokens[index]; bots[index] = create_bot(token_to_reboot.strip()); print(f"[Reboot] Acc Phụ {index} đã được khởi động lại.")
-                else: print(f"[Reboot] Index không hợp lệ: {index}")
-            except (ValueError, IndexError) as e: print(f"[Reboot] Lỗi xử lý target Acc Phụ: {e}")
+                    print(f"[Reboot] Đang xử lý Acc Phụ {index}...")
+                    try:
+                        bots[index].gateway.close()
+                    except Exception as e:
+                        print(f"[Reboot] Lỗi khi đóng Acc Phụ {index}: {e}")
+                    
+                    token_to_reboot = tokens[index]
+                    bots[index] = create_bot(token_to_reboot.strip())
+                    print(f"[Reboot] Acc Phụ {index} đã được khởi động lại.")
+                else:
+                    print(f"[Reboot] Index không hợp lệ: {index}")
+            except (ValueError, IndexError) as e:
+                print(f"[Reboot] Lỗi xử lý target Acc Phụ: {e}")
         else:
             print(f"[Reboot] Target không xác định: {target_id}")
 
