@@ -1,4 +1,4 @@
-# PHIÊN BẢN CUỐI CÙNG - GIAO DIỆN "KARUTA DEEP" VÀ ĐẦY ĐỦ TÍNH NĂNG (ĐÃ CẬP NHẬT WEB KHÔNG REFRESH)
+# PHIÊN BẢN CUỐI CÙNG - GIAO DIỆN "KARUTA DEEP" VÀ ĐẦY ĐỦ TÍNH NĂNG (ĐÃ CẬP NHẬT WEB KHÔNG REFRESH + TÙY CHỌN SPAM)
 import discum
 import threading
 import time
@@ -35,6 +35,7 @@ auto_grab_enabled, auto_grab_enabled_2, auto_grab_enabled_3 = False, False, Fals
 heart_threshold, heart_threshold_2, heart_threshold_3 = 50, 50, 50
 spam_enabled, auto_work_enabled, auto_reboot_enabled = False, False, False
 spam_message, spam_delay, work_delay_between_acc, work_delay_after_all, auto_reboot_delay = "", 10, 10, 44100, 3600
+spam_target = "all"  # CÓ THỂ LÀ 'all', 'main', 'sub'
 last_work_cycle_time, last_reboot_cycle_time, last_spam_time = 0, 0, 0
 spam_thread, auto_reboot_thread, auto_reboot_stop_event = None, None, None
 bots_lock = threading.Lock()
@@ -43,7 +44,7 @@ bot_active_states = {}
 
 # --- BIẾN CHO AUTO DAILY ---
 auto_daily_enabled = False
-daily_delay_after_all = 87000 
+daily_delay_after_all = 87000
 daily_delay_between_acc = 3
 last_daily_cycle_time = 0
 
@@ -51,7 +52,7 @@ last_daily_cycle_time = 0
 auto_kvi_enabled = False
 kvi_click_count = 10
 kvi_click_delay = 3
-kvi_loop_delay = 7500 
+kvi_loop_delay = 7500
 last_kvi_cycle_time = 0
 
 # --- CÁC HÀM LOGIC BOT (KHÔNG THAY ĐỔI) ---
@@ -61,19 +62,19 @@ def reboot_bot(target_id):
     with bots_lock:
         print(f"[Reboot] Nhận được yêu cầu reboot cho target: {target_id}")
         if target_id == 'main_1' and main_token:
-            try: 
+            try:
                 if main_bot: main_bot.gateway.close()
             except Exception as e: print(f"[Reboot] Lỗi khi đóng Acc Chính 1: {e}")
             main_bot = create_bot(main_token, is_main=True)
             print("[Reboot] Acc Chính 1 đã được khởi động lại.")
         elif target_id == 'main_2' and main_token_2:
-            try: 
+            try:
                 if main_bot_2: main_bot_2.gateway.close()
             except Exception as e: print(f"[Reboot] Lỗi khi đóng Acc Chính 2: {e}")
             main_bot_2 = create_bot(main_token_2, is_main_2=True)
             print("[Reboot] Acc Chính 2 đã được khởi động lại.")
         elif target_id == 'main_3' and main_token_3:
-            try: 
+            try:
                 if main_bot_3: main_bot_3.gateway.close()
             except Exception as e: print(f"[Reboot] Lỗi khi đóng Acc Chính 3: {e}")
             main_bot_3 = create_bot(main_token_3, is_main_3=True)
@@ -191,7 +192,7 @@ def create_bot(token, is_main=False, is_main_2=False, is_main_3=False):
                         except Exception as e:
                             print(f"Lỗi khi đọc tin nhắn Karibbit (Bot 3): {e}")
                     threading.Thread(target=read_karibbit_3).start()
-    
+
     threading.Thread(target=bot.gateway.run, daemon=True).start()
     return bot
 
@@ -267,7 +268,7 @@ def run_work_bot(token, acc_name):
             message_id = m["id"]
             application_id = m.get("application_id", karuta_id)
             for comp in m["components"]:
-                 if comp["type"] == 1 and len(comp["components"]) >= 2:	
+                 if comp["type"] == 1 and len(comp["components"]) >= 2:
                     btn = comp["components"][1]
                     print(f"[Work][{acc_name}] Click nút thứ 2: {btn['custom_id']}")
                     click_tick(work_channel_id, message_id, btn["custom_id"], application_id, guild_id)
@@ -292,9 +293,9 @@ def auto_work_loop():
     while True:
         if auto_work_enabled:
             work_items = []
-            if main_token_2 and bot_active_states.get('main_2', False): 
+            if main_token_2 and bot_active_states.get('main_2', False):
                 work_items.append({"name": "BETA NODE", "token": main_token_2})
-            if main_token_3 and bot_active_states.get('main_3', False): 
+            if main_token_3 and bot_active_states.get('main_3', False):
                 work_items.append({"name": "GAMMA NODE", "token": main_token_3})
             with bots_lock:
                 sub_account_items = [{"name": acc_names[i] if i < len(acc_names) else f"Sub {i+1}", "token": token} for i, token in enumerate(tokens) if token.strip() and bot_active_states.get(f'sub_{i}', False)]
@@ -428,23 +429,60 @@ def auto_reboot_loop():
     print("[Reboot] Luồng tự động reboot đã dừng.")
 
 def spam_loop():
-    global spam_enabled, spam_message, spam_delay, last_spam_time
+    global spam_enabled, spam_message, spam_delay, last_spam_time, spam_target
     while True:
         if spam_enabled and spam_message:
             last_spam_time = time.time()
-            with bots_lock: bots_to_spam = [bot for i, bot in enumerate(bots) if bot and bot_active_states.get(f'sub_{i}', False)]
-            for idx, bot in enumerate(bots_to_spam):
-                if not spam_enabled: break
+            
+            bots_to_spam = []
+            
+            # Lấy danh sách các bot chính đang hoạt động
+            main_accounts = []
+            if main_bot and bot_active_states.get('main_1', False):
+                main_accounts.append({"bot": main_bot, "name": "ALPHA"})
+            if main_bot_2 and bot_active_states.get('main_2', False):
+                main_accounts.append({"bot": main_bot_2, "name": "BETA"})
+            if main_bot_3 and bot_active_states.get('main_3', False):
+                main_accounts.append({"bot": main_bot_3, "name": "GAMMA"})
+
+            # Lấy danh sách các bot phụ đang hoạt động
+            sub_accounts = []
+            with bots_lock:
+                sub_accounts = [
+                    {"bot": bot, "name": acc_names[i] if i < len(acc_names) else f"Sub {i+1}"}
+                    for i, bot in enumerate(bots) 
+                    if bot and bot_active_states.get(f'sub_{i}', False)
+                ]
+
+            # Quyết định danh sách spam cuối cùng dựa trên spam_target
+            if spam_target == 'main':
+                bots_to_spam = main_accounts
+            elif spam_target == 'sub':
+                bots_to_spam = sub_accounts
+            else:  # Mặc định là 'all'
+                bots_to_spam = main_accounts + sub_accounts
+
+            for item in bots_to_spam:
+                if not spam_enabled: 
+                    break
                 try:
-                    acc_name = acc_names[idx] if idx < len(acc_names) else f"Sub {idx+1}"
-                    bot.sendMessage(spam_channel_id, spam_message); print(f"[{acc_name}] đã gửi: {spam_message}"); time.sleep(2)
-                except Exception as e: print(f"Lỗi gửi spam từ [{acc_name}]: {e}")
-            print(f"[Spam] Chờ {spam_delay} giây cho lượt tiếp theo...")
-            start_wait = time.time()
-            while time.time() - start_wait < spam_delay:
-                if not spam_enabled: break
-                time.sleep(1)
-        else: time.sleep(1)
+                    bot_instance = item["bot"]
+                    bot_name = item["name"]
+                    bot_instance.sendMessage(spam_channel_id, spam_message)
+                    print(f"[{bot_name}] đã gửi: {spam_message}")
+                    time.sleep(2)  # Delay nhỏ giữa mỗi tin nhắn để tránh rate limit
+                except Exception as e:
+                    print(f"Lỗi gửi spam từ [{bot_name}]: {e}")
+            
+            if spam_enabled:
+                print(f"[Spam] Chờ {spam_delay} giây cho lượt tiếp theo...")
+                start_wait = time.time()
+                while time.time() - start_wait < spam_delay:
+                    if not spam_enabled:
+                        break
+                    time.sleep(1)
+        else:
+            time.sleep(1)
 
 app = Flask(__name__)
 
@@ -619,6 +657,14 @@ HTML_TEMPLATE = """
              <div class="panel dark-panel">
                 <h2 data-text="Shadow Broadcast"><i class="fas fa-broadcast-tower"></i> Shadow Broadcast</h2>
                 <h3 style="text-align:center; font-family: 'Orbitron'; margin-bottom: 10px; color: var(--text-secondary);">AUTO SPAM</h3>
+                <div class="input-group">
+                    <label>Target</label>
+                    <select id="spam-target">
+                        <option value="all">All Accounts</option>
+                        <option value="main">Main Accounts</option>
+                        <option value="sub">Sub Accounts</option>
+                    </select>
+                </div>
                 <div class="input-group"><label>Message</label><textarea id="spam-message" rows="2">{{ spam_message }}</textarea></div>
                 <div class="input-group"><label>Delay (s)</label><input type="number" id="spam-delay" value="{{ spam_delay }}"></div>
                 <button type="button" id="spam-toggle-btn" class="btn {{ spam_button_class }}" style="width:100%;">{{ spam_action }} SPAM</button>
@@ -701,6 +747,8 @@ HTML_TEMPLATE = """
                 updateElement('reboot-status-badge', { textContent: data.reboot_enabled ? 'ON' : 'OFF', className: `status-badge ${data.reboot_enabled ? 'active' : 'inactive'}` });
                 updateElement('spam-timer', { textContent: formatTime(data.spam_countdown) });
                 updateElement('spam-status-badge', { textContent: data.spam_enabled ? 'ON' : 'OFF', className: `status-badge ${data.spam_enabled ? 'active' : 'inactive'}` });
+                updateElement('spam-target', { value: data.spam_target }); // Cập nhật lựa chọn spam
+                
                 const serverUptimeSeconds = (Date.now() / 1000) - data.server_start_time;
                 updateElement('uptime-timer', { textContent: formatTime(serverUptimeSeconds) });
 
@@ -800,7 +848,8 @@ HTML_TEMPLATE = """
             postData('/api/broadcast_toggle', {
                 type: 'spam',
                 message: document.getElementById('spam-message').value,
-                delay: document.getElementById('spam-delay').value
+                delay: document.getElementById('spam-delay').value,
+                target: document.getElementById('spam-target').value // Gửi lựa chọn spam
             });
         });
         document.getElementById('auto-kvi-toggle-btn').addEventListener('click', () => {
@@ -837,18 +886,18 @@ def index():
     daily_action, daily_button_class = ("DISABLE", "btn-blood") if auto_daily_enabled else ("ENABLE", "btn-necro")
     kvi_action, kvi_button_class = ("DISABLE", "btn-blood") if auto_kvi_enabled else ("ENABLE", "btn-necro")
     reboot_action, reboot_button_class = ("DISABLE", "btn-blood") if auto_reboot_enabled else ("ENABLE", "btn-necro")
-    
+
     acc_options = "".join(f'<option value="{i}">{name}</option>' for i, name in enumerate(acc_names[:len(bots)]))
     if main_bot: acc_options += '<option value="main_1">ALPHA NODE (Main)</option>'
     if main_bot_2: acc_options += '<option value="main_2">BETA NODE (Main)</option>'
     if main_bot_3: acc_options += '<option value="main_3">GAMMA NODE (Main)</option>'
     sub_account_buttons = "".join(f'<button type="button" data-reboot-target="sub_{i}" class="btn btn-necro btn-sm">{name}</button>' for i, name in enumerate(acc_names[:len(bots)]))
 
-    return render_template_string(HTML_TEMPLATE, 
+    return render_template_string(HTML_TEMPLATE,
         grab_status=grab_status, grab_text=grab_text, grab_action=grab_action, grab_button_class=grab_button_class, heart_threshold=heart_threshold,
         grab_status_2=grab_status_2, grab_text_2=grab_text_2, grab_action_2=grab_action_2, grab_button_class_2=grab_button_class_2, heart_threshold_2=heart_threshold_2,
         grab_status_3=grab_status_3, grab_text_3=grab_text_3, grab_action_3=grab_action_3, grab_button_class_3=grab_button_class_3, heart_threshold_3=heart_threshold_3,
-        spam_message=spam_message, spam_delay=spam_delay, spam_action=spam_action, spam_button_class=spam_button_class,
+        spam_message=spam_message, spam_delay=spam_delay, spam_action=spam_action, spam_button_class=spam_button_class, spam_target=spam_target,
         work_delay_between_acc=work_delay_between_acc, work_delay_after_all=work_delay_after_all, work_action=work_action, work_button_class=work_button_class,
         daily_delay_between_acc=daily_delay_between_acc, daily_delay_after_all=daily_delay_after_all, daily_action=daily_action, daily_button_class=daily_button_class,
         kvi_click_count=kvi_click_count, kvi_click_delay=kvi_click_delay, kvi_loop_delay=kvi_loop_delay, kvi_action=kvi_action, kvi_button_class=kvi_button_class,
@@ -886,7 +935,7 @@ def api_manual_ops():
     if msg_to_send:
         msg = f"Sent to slaves: {msg_to_send}"
         with bots_lock:
-            for idx, bot in enumerate(bots): 
+            for idx, bot in enumerate(bots):
                 if bot and bot_active_states.get(f'sub_{idx}', False):
                     threading.Timer(2 * idx, bot.sendMessage, args=(other_channel_id, msg_to_send)).start()
     return jsonify({'status': 'success', 'message': msg})
@@ -982,18 +1031,24 @@ def api_reboot_toggle_auto():
 
 @app.route("/api/broadcast_toggle", methods=['POST'])
 def api_broadcast_toggle():
-    global spam_enabled, spam_message, spam_delay, spam_thread, last_spam_time
+    global spam_enabled, spam_message, spam_delay, spam_thread, last_spam_time, spam_target
     global auto_kvi_enabled, kvi_click_count, kvi_click_delay, kvi_loop_delay, last_kvi_cycle_time
     data = request.get_json()
     msg = ""
     if data.get('type') == 'spam':
         spam_message = data.get("message", "").strip()
         spam_delay = int(data.get("delay", 10))
+        spam_target = data.get("target", "all") # Lưu lại lựa chọn spam
         if not spam_enabled and spam_message:
-            spam_enabled = True; last_spam_time = time.time(); msg = "Spam ENABLED."
+            spam_enabled = True
+            last_spam_time = time.time()
+            msg = f"Spam ENABLED (Target: {spam_target.upper()})."
             if spam_thread is None or not spam_thread.is_alive():
-                spam_thread = threading.Thread(target=spam_loop, daemon=True); spam_thread.start()
-        else: spam_enabled = False; msg = "Spam DISABLED."
+                spam_thread = threading.Thread(target=spam_loop, daemon=True)
+                spam_thread.start()
+        else:
+            spam_enabled = False
+            msg = "Spam DISABLED."
     elif data.get('type') == 'kvi':
         auto_kvi_enabled = not auto_kvi_enabled
         if auto_kvi_enabled: last_kvi_cycle_time = time.time()
@@ -1054,6 +1109,7 @@ def status():
         'kvi_enabled': auto_kvi_enabled, 'kvi_countdown': kvi_countdown,
         'reboot_enabled': auto_reboot_enabled, 'reboot_countdown': reboot_countdown,
         'spam_enabled': spam_enabled, 'spam_countdown': spam_countdown,
+        'spam_target': spam_target,  # Trả về trạng thái spam target
         'bot_statuses': bot_statuses,
         'server_start_time': server_start_time,
         'ui_states': ui_states
@@ -1081,7 +1137,7 @@ if __name__ == "__main__":
     threading.Thread(target=auto_work_loop, daemon=True).start()
     threading.Thread(target=auto_daily_loop, daemon=True).start()
     threading.Thread(target=auto_kvi_loop, daemon=True).start()
-    
+
     port = int(os.environ.get("PORT", 8080))
     print(f"Khởi động Web Server tại http://0.0.0.0:{port}")
     app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
