@@ -245,10 +245,13 @@ def run_work_bot(token, acc_name):
     bot.gateway.close()
     print(f"[Work][{acc_name}] {'Hoàn thành.' if step['value'] == 3 else 'Thất bại (timeout).'}")
 
-def get_active_bots_for_task(include_main2=True, include_main3=True, include_subs=True):
-    """Lấy danh sách các bot đang hoạt động cho một tác vụ."""
+def get_active_bots_for_task(include_main1=True, include_main2=True, include_main3=True, include_subs=True):
+    """Lấy danh sách các bot đang hoạt động cho một tác vụ (đã sửa đổi)."""
     items = []
     with bots_lock:
+        # Thêm tài khoản ALPHA (main_1)
+        if include_main1 and main_token and bot_active_states.get('main_1', False):
+            items.append({"name": "ALPHA NODE", "token": main_token})
         if include_main2 and main_token_2 and bot_active_states.get('main_2', False):
             items.append({"name": "BETA NODE", "token": main_token_2})
         if include_main3 and main_token_3 and bot_active_states.get('main_3', False):
@@ -1015,13 +1018,28 @@ def api_manual_ops():
     msg_to_send = data.get('message') or data.get('quickmsg')
     if not msg_to_send:
         return jsonify({'status': 'error', 'message': 'Message is empty.'})
-    
-    msg = f"Sent to active slaves: {msg_to_send}"
+
+    all_active_bots = []
     with bots_lock:
-        active_bots = [b for i, b in enumerate(bots) if b and bot_active_states.get(f'sub_{i}', False)]
-        for idx, bot in enumerate(active_bots):
-            # Gửi tin nhắn với độ trễ nhỏ để tránh rate limit
-            threading.Timer(0.2 * idx, bot.sendMessage, args=(other_channel_id, msg_to_send)).start()
+        # Lấy tất cả các bot đang hoạt động (chính + phụ)
+        if main_bot and bot_active_states.get('main_1', False):
+            all_active_bots.append(main_bot)
+        if main_bot_2 and bot_active_states.get('main_2', False):
+            all_active_bots.append(main_bot_2)
+        if main_bot_3 and bot_active_states.get('main_3', False):
+            all_active_bots.append(main_bot_3)
+        
+        active_sub_bots = [b for i, b in enumerate(bots) if b and bot_active_states.get(f'sub_{i}', False)]
+        all_active_bots.extend(active_sub_bots)
+
+    if not all_active_bots:
+        return jsonify({'status': 'error', 'message': 'No active bots to send message.'})
+
+    # Gửi tin nhắn từ tất cả các bot đang hoạt động
+    for idx, bot in enumerate(all_active_bots):
+        threading.Timer(0.2 * idx, bot.sendMessage, args=(other_channel_id, msg_to_send)).start()
+        
+    msg = f"Sent '{msg_to_send}' from {len(all_active_bots)} active account(s)."
     return jsonify({'status': 'success', 'message': msg})
 
 @app.route("/api/inject_codes", methods=['POST'])
