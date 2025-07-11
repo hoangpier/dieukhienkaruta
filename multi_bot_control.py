@@ -121,20 +121,14 @@ def create_bot(token, is_main=False, is_main_2=False, is_main_3=False):
     return bot
 
 def handle_grab_logic(resp, bot_instance, bot_num, channel_id):
-    global auto_grab_enabled, heart_threshold, auto_grab_enabled_2, heart_threshold_2, auto_grab_enabled_3, heart_threshold_3
-    
     bot_id_str = f"main_{bot_num}"
     
-    # Lấy trạng thái và ngưỡng của bot tương ứng
-    is_enabled, threshold, delays = {
-        1: (auto_grab_enabled, heart_threshold, [("1️⃣", 0.5), ("2️⃣", 1.5), ("3️⃣", 2.2)]),
-        2: (auto_grab_enabled_2, heart_threshold_2, [("1️⃣", 0.8), ("2️⃣", 1.8), ("3️⃣", 2.5)]),
-        3: (auto_grab_enabled_3, heart_threshold_3, [("1️⃣", 0.8), ("2️⃣", 1.8), ("3️⃣", 2.5)])
-    }.get(bot_num, (False, 0, []))
-
-    # <<< SỬA LỖI 2: Thêm kiểm tra trạng thái active của bot >>
-    # Chỉ chạy nếu auto grab được bật VÀ bot đó đang active trên UI
     with bots_lock:
+        is_enabled, threshold, delays = {
+            1: (auto_grab_enabled, heart_threshold, [("1️⃣", 0.5), ("2️⃣", 1.5), ("3️⃣", 2.2)]),
+            2: (auto_grab_enabled_2, heart_threshold_2, [("1️⃣", 0.8), ("2️⃣", 1.8), ("3️⃣", 2.5)]),
+            3: (auto_grab_enabled_3, heart_threshold_3, [("1️⃣", 0.8), ("2️⃣", 1.8), ("3️⃣", 2.5)])
+        }.get(bot_num, (False, 0, []))
         is_bot_active = bot_active_states.get(bot_id_str, False)
         
     if not (resp.event.message and is_enabled and is_bot_active):
@@ -169,19 +163,21 @@ def handle_grab_logic(resp, bot_instance, bot_num, channel_id):
                             print(f"[Bot {bot_num}] Chọn dòng {max_index+1} với {max_num} tim -> Emoji {emoji} sau {delay}s")
                             
                             def grab():
-                                bot_instance.addReaction(channel_id, last_drop_msg_id, emoji)
-                                bot_instance.sendMessage(ktb_channel_id, "kt b")
+                                try:
+                                    bot_instance.addReaction(channel_id, last_drop_msg_id, emoji)
+                                    bot_instance.sendMessage(ktb_channel_id, "kt b")
+                                except Exception as e:
+                                    print(f"[ERROR][Bot {bot_num}] Lỗi khi grab: {e}")
                             
                             threading.Timer(delay, grab).start()
                         break 
             except Exception as e:
-                print(f"Lỗi khi đọc tin nhắn Karibbit (Bot {bot_num}): {e}")
+                print(f"[ERROR] Lỗi khi đọc tin nhắn Karibbit (Bot {bot_num}): {e}")
         
         threading.Thread(target=read_karibbit).start()
 
 
 def run_work_bot(token, acc_name):
-    # This function seems robust, no changes needed.
     bot = discum.Client(token=token, log={"console": False, "file": False})
     headers = {"Authorization": token, "Content-Type": "application/json"}
     step = {"value": 0}
@@ -194,12 +190,12 @@ def run_work_bot(token, acc_name):
                 "data": {"component_type": 2, "custom_id": custom_id}
             })
             if r.status_code >= 400:
-                 print(f"[Work][{acc_name}] Lỗi Click Tick: Status {r.status_code}, Response: {r.text}")
+                 print(f"[ERROR][Work][{acc_name}] Lỗi Click Tick: Status {r.status_code}, Response: {r.text}")
                  return False
             print(f"[Work][{acc_name}] Click tick: Status {r.status_code}")
             return True
         except Exception as e:
-            print(f"[Work][{acc_name}] Lỗi click tick: {e}")
+            print(f"[ERROR][Work][{acc_name}] Lỗi khi click tick: {e}")
             return False
 
     @bot.gateway.command
@@ -238,7 +234,7 @@ def run_work_bot(token, acc_name):
                     print(f"[Work][{acc_name}] Click nút thứ 2: {btn['custom_id']}")
                     if click_tick(work_channel_id, message_id, btn["custom_id"], app_id, guild_id):
                         step["value"] = 3
-                    return # Dừng xử lý sau khi click
+                    return
 
     print(f"[Work][{acc_name}] Bắt đầu...")
     threading.Thread(target=bot.gateway.run, daemon=True).start()
@@ -252,45 +248,34 @@ def run_work_bot(token, acc_name):
     bot.gateway.close()
     print(f"[Work][{acc_name}] {'Hoàn thành.' if step['value'] == 3 else 'Thất bại (timeout).'}")
 
-def get_active_bots_for_task(include_main1=True, include_main2=True, include_main3=True, include_subs=True):
-    items = []
-    with bots_lock:
-        if include_main1 and main_token and bot_active_states.get('main_1', False):
-            items.append({"name": "ALPHA NODE", "token": main_token})
-        if include_main2 and main_token_2 and bot_active_states.get('main_2', False):
-            items.append({"name": "BETA NODE", "token": main_token_2})
-        if include_main3 and main_token_3 and bot_active_states.get('main_3', False):
-            items.append({"name": "GAMMA NODE", "token": main_token_3})
-        if include_subs:
-            sub_items = [
-                {"name": acc_names[i] if i < len(acc_names) else f"Sub {i+1}", "token": token}
-                for i, token in enumerate(tokens)
-                if token.strip() and bot_active_states.get(f'sub_{i}', False)
-            ]
-            items.extend(sub_items)
-    return items
-
-# Other loops (auto_work_loop, auto_daily_loop, etc.) are well-structured and use get_active_bots_for_task, so no changes needed for them.
 def auto_work_loop():
     global last_work_cycle_time
     while True:
-        if auto_work_enabled:
+        with bots_lock:
+            is_enabled = auto_work_enabled
+            delay_between = work_delay_between_acc
+            delay_after = work_delay_after_all
+        
+        if is_enabled:
             work_items = get_active_bots_for_task()
             for item in work_items:
-                if not auto_work_enabled: break
+                with bots_lock:
+                    if not auto_work_enabled: break
                 print(f"[Work] Đang chạy acc '{item['name']}'...")
                 run_work_bot(item['token'].strip(), item['name'])
-                if not auto_work_enabled: break
-                print(f"[Work] Acc '{item['name']}' xong, chờ {work_delay_between_acc} giây...")
-                time.sleep(work_delay_between_acc)
-
-            if auto_work_enabled:
-                print(f"[Work] Hoàn thành chu kỳ, chờ {work_delay_after_all / 3600:.2f} giờ...")
-                last_work_cycle_time = time.time()
-                start_wait = time.time()
-                while time.time() - start_wait < work_delay_after_all:
+                with bots_lock:
                     if not auto_work_enabled: break
-                    time.sleep(1)
+                print(f"[Work] Acc '{item['name']}' xong, chờ {delay_between} giây...")
+                time.sleep(delay_between)
+
+            with bots_lock:
+                if auto_work_enabled:
+                    print(f"[Work] Hoàn thành chu kỳ, chờ {delay_after / 3600:.2f} giờ...")
+                    last_work_cycle_time = time.time()
+                    start_wait = time.time()
+                    while time.time() - start_wait < delay_after:
+                        if not auto_work_enabled: break
+                        time.sleep(1)
         else:
             time.sleep(1)
 
@@ -307,37 +292,31 @@ def run_daily_bot(token, acc_name):
                 "data": {"component_type": 2, "custom_id": custom_id}
             })
             if r.status_code >= 400:
-                print(f"[Daily][{acc_name}] Lỗi Click: Status {r.status_code}, Response: {r.text}")
+                print(f"[ERROR][Daily][{acc_name}] Lỗi Click: Status {r.status_code}, Response: {r.text}")
                 return False
             print(f"[Daily][{acc_name}] Click: {custom_id} - Status {r.status_code}")
             return True
         except Exception as e:
-            print(f"[Daily][{acc_name}] Click Error: {e}")
+            print(f"[ERROR][Daily][{acc_name}] Lỗi khi Click: {e}")
             return False
 
     @bot.gateway.command
     def on_event(resp):
         event_type = resp.raw.get("t")
         if not (event_type == "MESSAGE_CREATE" or event_type == "MESSAGE_UPDATE"): return
-        
         m = resp.parsed.auto()
         if (str(m.get("channel_id")) != daily_channel_id or 
             str(m.get("author", {}).get("id", "")) != karuta_id or
             "components" not in m or not m["components"]): return
-
         btn = next((b for comp in m["components"] for b in comp.get("components", []) if b["type"] == 2), None)
         if not btn: return
-
         if event_type == "MESSAGE_CREATE" and state["step"] == 0:
             print(f"[Daily][{acc_name}] Click lần 1...")
             state.update({"message_id": m["id"], "guild_id": m["guild_id"], "app_id": m.get("application_id", karuta_id)})
-            if click_button(btn["custom_id"]):
-                state["step"] = 1
-        
+            if click_button(btn["custom_id"]): state["step"] = 1
         elif event_type == "MESSAGE_UPDATE" and m.get("id") == state["message_id"] and state["step"] == 1:
             print(f"[Daily][{acc_name}] Click lần 2...")
-            if click_button(btn["custom_id"]):
-                state["step"] = 2
+            if click_button(btn["custom_id"]): state["step"] = 2
     
     print(f"[Daily][{acc_name}] Bắt đầu..."); threading.Thread(target=bot.gateway.run, daemon=True).start(); time.sleep(2); bot.sendMessage(daily_channel_id, "kdaily")
     timeout = time.time() + 20
@@ -349,25 +328,32 @@ def run_daily_bot(token, acc_name):
 def auto_daily_loop():
     global last_daily_cycle_time
     while True:
-        if auto_daily_enabled:
+        with bots_lock:
+            is_enabled = auto_daily_enabled
+            delay_between = daily_delay_between_acc
+            delay_after = daily_delay_after_all
+
+        if is_enabled:
             daily_items = get_active_bots_for_task()
             for item in daily_items:
-                if not auto_daily_enabled: break
-                print(f"[Daily] Đang chạy acc '{item['name']}'..."); run_daily_bot(item['token'].strip(), item['name'])
-                if not auto_daily_enabled: break
-                print(f"[Daily] Acc '{item['name']}' xong, chờ {daily_delay_between_acc} giây..."); time.sleep(daily_delay_between_acc)
-            
-            if auto_daily_enabled:
-                print(f"[Daily] Hoàn thành chu kỳ, chờ {daily_delay_after_all / 3600:.2f} giờ..."); last_daily_cycle_time = time.time()
-                start_wait = time.time()
-                while time.time() - start_wait < daily_delay_after_all:
+                with bots_lock:
                     if not auto_daily_enabled: break
-                    time.sleep(1)
+                print(f"[Daily] Đang chạy acc '{item['name']}'..."); run_daily_bot(item['token'].strip(), item['name'])
+                with bots_lock:
+                    if not auto_daily_enabled: break
+                print(f"[Daily] Acc '{item['name']}' xong, chờ {delay_between} giây..."); time.sleep(delay_between)
+            
+            with bots_lock:
+                if auto_daily_enabled:
+                    print(f"[Daily] Hoàn thành chu kỳ, chờ {delay_after / 3600:.2f} giờ..."); last_daily_cycle_time = time.time()
+                    start_wait = time.time()
+                    while time.time() - start_wait < delay_after:
+                        if not auto_daily_enabled: break
+                        time.sleep(1)
         else:
             time.sleep(1)
 
 def run_kvi_bot(token):
-    # This function seems robust, no changes needed.
     bot = discum.Client(token=token, log={"console": False, "file": False})
     headers = {"Authorization": token, "Content-Type": "application/json"}
     state = {"step": 0, "click_count": 0, "message_id": None, "guild_id": None, "app_id": None}
@@ -380,11 +366,10 @@ def run_kvi_bot(token):
                 "data": {"component_type": 2, "custom_id": custom_id}
             })
             if r.status_code >= 400:
-                 print(f"[KVI] Lỗi Click: Status {r.status_code}, Response: {r.text}")
-                 return False
+                 print(f"[ERROR][KVI] Lỗi Click: Status {r.status_code}, Response: {r.text}"); return False
             print(f"[KVI] Click {state['click_count']+1}: {custom_id} - Status {r.status_code}")
             return True
-        except Exception as e: print(f"[KVI] Click Error: {e}"); return False
+        except Exception as e: print(f"[ERROR][KVI] Lỗi khi Click: {e}"); return False
 
     @bot.gateway.command
     def on_event(resp):
@@ -396,62 +381,82 @@ def run_kvi_bot(token):
         btn = next((b for comp in m["components"] for b in comp.get("components", []) if b["type"] == 2), None)
         if not btn: return
         
+        with bots_lock:
+            clicks_to_perform = kvi_click_count
+
         if event_type == "MESSAGE_CREATE" and state["step"] == 0:
             state.update({"message_id": m["id"], "guild_id": m["guild_id"], "app_id": m.get("application_id", karuta_id), "step": 1})
             if click_button(btn["custom_id"]): state["click_count"] += 1
         
-        elif event_type == "MESSAGE_UPDATE" and m.get("id") == state["message_id"] and state["click_count"] < kvi_click_count:
-            time.sleep(kvi_click_delay)
+        elif event_type == "MESSAGE_UPDATE" and m.get("id") == state["message_id"] and state["click_count"] < clicks_to_perform:
+            with bots_lock:
+                delay = kvi_click_delay
+            time.sleep(delay)
             if click_button(btn["custom_id"]): state["click_count"] += 1
-            if state["click_count"] >= kvi_click_count: state["step"] = 2
+            if state["click_count"] >= clicks_to_perform: state["step"] = 2
     
     print("[KVI] Bắt đầu..."); threading.Thread(target=bot.gateway.run, daemon=True).start(); time.sleep(2); bot.sendMessage(kvi_channel_id, "kvi")
     timeout = time.time() + (kvi_click_count * kvi_click_delay) + 20
     while state["step"] != 2 and time.time() < timeout: time.sleep(0.5)
     
     bot.gateway.close()
-    print(f"[KVI] {'SUCCESS. Đã click xong.' if state['click_count'] >= kvi_click_count else f'FAIL. Chỉ click được {state['click_count']} / {kvi_click_count} lần.'}")
+    print(f"[KVI] {'SUCCESS.' if state['click_count'] >= kvi_click_count else f'FAIL. Chỉ click được {state['click_count']} / {kvi_click_count} lần.'}")
 
 def auto_kvi_loop():
     global last_kvi_cycle_time
     while True:
         with bots_lock:
-            kvi_active = auto_kvi_enabled and main_token and bot_active_states.get('main_1', False)
+            is_enabled = auto_kvi_enabled
+            is_main_bot_active = main_token and bot_active_states.get('main_1', False)
+            loop_delay = kvi_loop_delay
 
-        if kvi_active:
+        if is_enabled and is_main_bot_active:
             print("[KVI] Bắt đầu chu trình KVI cho Acc Chính 1..."); run_kvi_bot(main_token)
-            if auto_kvi_enabled: # Check again in case it was disabled during run
-                last_kvi_cycle_time = time.time(); print(f"[KVI] Hoàn thành. Chờ {kvi_loop_delay / 3600:.2f} giờ.")
-                start_wait = time.time()
-                while time.time() - start_wait < kvi_loop_delay:
-                    if not auto_kvi_enabled: break
-                    time.sleep(1)
+            with bots_lock:
+                if auto_kvi_enabled:
+                    last_kvi_cycle_time = time.time(); print(f"[KVI] Hoàn thành. Chờ {loop_delay / 3600:.2f} giờ.")
+                    start_wait = time.time()
+                    while time.time() - start_wait < loop_delay:
+                        if not auto_kvi_enabled: break
+                        time.sleep(1)
         else:
             time.sleep(1)
 
 def auto_reboot_loop():
     global last_reboot_cycle_time
     while True:
-        if auto_reboot_enabled:
-            print(f"[Reboot] Chờ {auto_reboot_delay} giây cho lần reboot tự động tiếp theo.")
+        with bots_lock:
+            is_enabled = auto_reboot_enabled
+            delay = auto_reboot_delay
+
+        if is_enabled:
+            print(f"[Reboot] Chờ {delay} giây cho lần reboot tự động tiếp theo.")
             last_reboot_cycle_time = time.time()
             start_wait = time.time()
-            while time.time() - start_wait < auto_reboot_delay:
-                if not auto_reboot_enabled: break
+            while time.time() - start_wait < delay:
+                with bots_lock:
+                    if not auto_reboot_enabled: break
                 time.sleep(1)
             
-            if auto_reboot_enabled:
-                print("[Reboot] Hết thời gian chờ, tiến hành reboot 3 tài khoản chính.")
-                if main_bot: reboot_bot('main_1'); time.sleep(5)
-                if main_bot_2: reboot_bot('main_2'); time.sleep(5)
-                if main_bot_3: reboot_bot('main_3')
+            with bots_lock:
+                if auto_reboot_enabled:
+                    print("[Reboot] Hết thời gian chờ, tiến hành reboot 3 tài khoản chính.")
+                    if main_bot: reboot_bot('main_1'); time.sleep(5)
+                    if main_bot_2: reboot_bot('main_2'); time.sleep(5)
+                    if main_bot_3: reboot_bot('main_3')
         else:
             time.sleep(1)
 
 def spam_loop():
     global last_spam_time
     while True:
-        if spam_enabled and spam_message:
+        with bots_lock:
+            is_enabled = spam_enabled
+            message = spam_message
+            delay = spam_delay
+            target = spam_target
+
+        if is_enabled and message:
             bots_to_spam = []
             with bots_lock:
                 main_accounts = []
@@ -465,31 +470,32 @@ def spam_loop():
                     if bot and bot_active_states.get(f'sub_{i}', False)
                 ]
 
-                if spam_target == 'main': bots_to_spam = main_accounts
-                elif spam_target == 'sub': bots_to_spam = sub_accounts
+                if target == 'main': bots_to_spam = main_accounts
+                elif target == 'sub': bots_to_spam = sub_accounts
                 else: bots_to_spam = main_accounts + sub_accounts
 
             for item in bots_to_spam:
-                if not spam_enabled: break
+                with bots_lock:
+                    if not spam_enabled: break
                 try:
-                    item["bot"].sendMessage(spam_channel_id, spam_message)
-                    print(f"[{item['name']}] đã gửi: {spam_message}")
+                    item["bot"].sendMessage(spam_channel_id, message)
+                    print(f"[{item['name']}] đã gửi: {message}")
                     time.sleep(2)
                 except Exception as e:
-                    print(f"Lỗi gửi spam từ [{item['name']}]: {e}")
+                    print(f"[ERROR] Lỗi gửi spam từ [{item['name']}]: {e}")
             
-            if spam_enabled:
-                print(f"[Spam] Chờ {spam_delay} giây cho lượt tiếp theo...")
-                last_spam_time = time.time()
-                start_wait = time.time()
-                while time.time() - start_wait < spam_delay:
-                    if not spam_enabled: break
-                    time.sleep(1)
+            with bots_lock:
+                if spam_enabled:
+                    print(f"[Spam] Chờ {delay} giây cho lượt tiếp theo...")
+                    last_spam_time = time.time()
+                    start_wait = time.time()
+                    while time.time() - start_wait < delay:
+                        if not spam_enabled: break
+                        time.sleep(1)
         else:
             time.sleep(1)
 
-
-# --- FLASK & UI ---
+# --- FLASK & UI (Không thay đổi) ---
 app = Flask(__name__)
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -574,114 +580,8 @@ HTML_TEMPLATE = """
         .bot-main span:first-child { color: #FF4500; text-shadow: 0 0 8px #FF4500; font-weight: 700; }
     </style>
 </head>
-<body>
-    <div class="container">
-        <div class="header">
-            <div class="skull-icon">💀</div>
-            <h1 class="title"><span class="title-main">KARUTA</span> <span class="title-sub">DEEP</span></h1>
-            <p class="subtitle">Shadow Network Control Interface</p>
-        </div>
-        
-        <div id="msg-status-container" class="msg-status"><i class="fas fa-info-circle"></i> <span id="msg-status-text"></span></div>
-
-        <div class="main-grid">
-            <div class="panel status-panel">
-                <h2 data-text="System Status"><i class="fas fa-heartbeat"></i> System Status</h2>
-                <div class="bot-status-container">
-                    <div class="status-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                        <div class="status-row"><span class="status-label"><i class="fas fa-cogs"></i> Auto Work</span><div><span id="work-timer" class="timer-display">--:--:--</span> <span id="work-status-badge" class="status-badge inactive">OFF</span></div></div>
-                        <div class="status-row"><span class="status-label"><i class="fas fa-calendar-check"></i> Auto Daily</span><div><span id="daily-timer" class="timer-display">--:--:--</span> <span id="daily-status-badge" class="status-badge inactive">OFF</span></div></div>
-                        <div class="status-row"><span class="status-label"><i class="fas fa-gem"></i> Auto KVI</span><div><span id="kvi-timer" class="timer-display">--:--:--</span> <span id="kvi-status-badge" class="status-badge inactive">OFF</span></div></div>
-                        <div class="status-row"><span class="status-label"><i class="fas fa-broadcast-tower"></i> Auto Spam</span><div><span id="spam-timer" class="timer-display">--:--:--</span><span id="spam-status-badge" class="status-badge inactive">OFF</span></div></div>
-                        <div class="status-row"><span class="status-label"><i class="fas fa-redo"></i> Auto Reboot</span><div><span id="reboot-timer" class="timer-display">--:--:--</span> <span id="reboot-status-badge" class="status-badge inactive">OFF</span></div></div>
-                        <div class="status-row"><span class="status-label"><i class="fas fa-server"></i> Deep Uptime</span><div><span id="uptime-timer" class="timer-display">--:--:--</span></div></div> 
-                    </div>
-                    <div id="bot-status-list" class="bot-status-grid"></div>
-                </div>
-            </div>
-
-            <div class="panel blood-panel">
-                <h2 data-text="Soul Harvest"><i class="fas fa-crosshairs"></i> Soul Harvest</h2>
-                <div class="grab-section"><h3>ALPHA NODE <span id="harvest-status-1" class="status-badge {{ grab_status }}">{{ grab_text }}</span></h3><div class="input-group"><input type="number" id="heart-threshold-1" value="{{ heart_threshold }}" min="0"><button type="button" id="harvest-toggle-1" class="btn {{ grab_button_class }}">{{ grab_action }}</button></div></div>
-                <div class="grab-section"><h3>BETA NODE <span id="harvest-status-2" class="status-badge {{ grab_status_2 }}">{{ grab_text_2 }}</span></h3><div class="input-group"><input type="number" id="heart-threshold-2" value="{{ heart_threshold_2 }}" min="0"><button type="button" id="harvest-toggle-2" class="btn {{ grab_button_class_2 }}">{{ grab_action_2 }}</button></div></div>
-                <div class="grab-section"><h3>GAMMA NODE <span id="harvest-status-3" class="status-badge {{ grab_status_3 }}">{{ grab_text_3 }}</span></h3><div class="input-group"><input type="number" id="heart-threshold-3" value="{{ heart_threshold_3 }}" min="0"><button type="button" id="harvest-toggle-3" class="btn {{ grab_button_class_3 }}">{{ grab_action_3 }}</button></div></div>
-            </div>
-
-            <div class="panel ops-panel">
-                <h2 data-text="Manual Operations"><i class="fas fa-keyboard"></i> Manual Operations</h2>
-                <div style="display: flex; flex-direction: column; gap: 15px;">
-                    <div class="input-group"><input type="text" id="manual-message-input" placeholder="Enter manual message for slaves..." style="border-radius: 5px;"><button type="button" id="send-manual-message-btn" class="btn" style="flex-shrink: 0; border-color: var(--neon-yellow, #fff000); color: var(--neon-yellow, #fff000);">SEND</button></div>
-                    <div id="quick-cmd-container" class="quick-cmd-grid">
-                        <button type="button" data-cmd="kc o:w" class="btn">KC O:W</button><button type="button" data-cmd="kc o:ef" class="btn">KC O:EF</button><button type="button" data-cmd="kc o:p" class="btn">KC O:P</button>
-                        <button type="button" data-cmd="kc e:1" class="btn">KC E:1</button><button type="button" data-cmd="kc e:2" class="btn">KC E:2</button><button type="button" data-cmd="kc e:3" class="btn">KC E:3</button>
-                        <button type="button" data-cmd="kc e:4" class="btn">KC E:4</button><button type="button" data-cmd="kc e:5" class="btn">KC E:5</button><button type="button" data-cmd="kc e:6" class="btn">KC E:6</button>
-                        <button type="button" data-cmd="kc e:7" class="btn">KC E:7</button>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="panel code-panel">
-                <h2 data-text="Code Injection"><i class="fas fa-code"></i> Code Injection</h2>
-                <div class="input-group"><label>Target</label><select id="inject-acc-index">{{ acc_options|safe }}</select></div>
-                <div class="input-group"><label>Prefix</label><input type="text" id="inject-prefix" placeholder="e.g. kt n"></div>
-                <div class="input-group"><label>Delay</label><input type="number" id="inject-delay" value="1.0" step="0.1"></div>
-                <div class="input-group" style="flex-direction: column; align-items: stretch;"><label style="border-radius: 5px 5px 0 0; border-bottom: none;">Code List (comma-separated)</label><textarea id="inject-codes" placeholder="paste codes here, separated by commas" rows="3" style="border-radius: 0 0 5px 5px;"></textarea></div>
-                <button type="button" id="inject-codes-btn" class="btn btn-primary" style="width: 100%; margin-top:10px;">Inject Codes</button>
-            </div>
-
-            <div class="panel void-panel">
-                <h2 data-text="Shadow Labor"><i class="fas fa-cogs"></i> Shadow Labor</h2>
-                <h3 style="text-align:center; font-family: 'Orbitron'; margin-bottom: 10px; color: var(--text-secondary);">AUTO WORK</h3>
-                <div class="input-group"><label>Node Delay</label><input type="number" id="work-delay-between-acc" value="{{ work_delay_between_acc }}"></div>
-                <div class="input-group"><label>Cycle Delay</label><input type="number" id="work-delay-after-all" value="{{ work_delay_after_all }}"></div>
-                <button type="button" id="auto-work-toggle-btn" class="btn {{ work_button_class }}" style="width:100%;">{{ work_action }} WORK</button>
-                <hr style="border-color: var(--border-color); margin: 25px 0;">
-                <h3 style="text-align:center; font-family: 'Orbitron'; margin-bottom: 10px; color: var(--text-secondary);">DAILY RITUAL</h3>
-                <div class="input-group"><label>Node Delay</label><input type="number" id="daily-delay-between-acc" value="{{ daily_delay_between_acc }}"></div>
-                <div class="input-group"><label>Cycle Delay</label><input type="number" id="daily-delay-after-all" value="{{ daily_delay_after_all }}"></div>
-                <button type="button" id="auto-daily-toggle-btn" class="btn {{ daily_button_class }}" style="width:100%;">{{ daily_action }} DAILY</button>
-            </div>
-
-            <div class="panel necro-panel">
-                 <h2 data-text="Shadow Resurrection"><i class="fas fa-skull"></i> Shadow Resurrection</h2>
-                <div class="input-group"><label>Interval (s)</label><input type="number" id="auto-reboot-delay" value="{{ auto_reboot_delay }}"></div>
-                <button type="button" id="auto-reboot-toggle-btn" class="btn {{ reboot_button_class }}" style="width:100%;">{{ reboot_action }} AUTO REBOOT</button>
-                <hr style="border-color: var(--border-color); margin: 20px 0;">
-                <h3 style="text-align:center; font-family: 'Orbitron';">MANUAL OVERRIDE</h3>
-                <div id="reboot-grid-container" class="reboot-grid" style="margin-top: 15px;">
-                    <button type="button" data-reboot-target="main_1" class="btn btn-necro btn-sm">ALPHA</button>
-                    <button type="button" data-reboot-target="main_2" class="btn btn-necro btn-sm">BETA</button>
-                    <button type="button" data-reboot-target="main_3" class="btn btn-necro btn-sm">GAMMA</button>
-                    {{ sub_account_buttons|safe }}
-                </div>
-                 <button type="button" id="reboot-all-btn" class="btn btn-blood" style="width:100%; margin-top: 15px;">REBOOT ALL SYSTEMS</button>
-            </div>
-            
-             <div class="panel dark-panel">
-                <h2 data-text="Shadow Broadcast"><i class="fas fa-broadcast-tower"></i> Shadow Broadcast</h2>
-                <h3 style="text-align:center; font-family: 'Orbitron'; margin-bottom: 10px; color: var(--text-secondary);">AUTO SPAM</h3>
-                <div class="input-group">
-                    <label>Target</label>
-                    <select id="spam-target">
-                        <option value="all">All Accounts</option>
-                        <option value="main">Main Accounts</option>
-                        <option value="sub">Sub Accounts</option>
-                    </select>
-                </div>
-                <div class="input-group"><label>Message</label><textarea id="spam-message" rows="2">{{ spam_message }}</textarea></div>
-                <div class="input-group"><label>Delay (s)</label><input type="number" id="spam-delay" value="{{ spam_delay }}"></div>
-                <button type="button" id="spam-toggle-btn" class="btn {{ spam_button_class }}" style="width:100%;">{{ spam_action }} SPAM</button>
-                <hr style="border-color: var(--border-color); margin: 25px 0;">
-                <h3 style="text-align:center; font-family: 'Orbitron'; margin-bottom: 10px; color: var(--text-secondary);">AUTO KVI (MAIN ACC 1)</h3>
-                <div class="input-group"><label>Clicks</label><input type="number" id="kvi-click-count" value="{{ kvi_click_count }}"></div>
-                <div class="input-group"><label>Click Delay</label><input type="number" id="kvi-click-delay" value="{{ kvi_click_delay }}"></div>
-                <div class="input-group"><label>Cycle Delay</label><input type="number" id="kvi-loop-delay" value="{{ kvi_loop_delay }}"></div>
-                <button type="button" id="auto-kvi-toggle-btn" class="btn {{ kvi_button_class }}" style="width:100%;">{{ kvi_action }} KVI</button>
-            </div>
-        </div>
-    </div>
+<body> <div class="container"> <div class="header"> <div class="skull-icon">💀</div> <h1 class="title"><span class="title-main">KARUTA</span> <span class="title-sub">DEEP</span></h1> <p class="subtitle">Shadow Network Control Interface</p> </div> <div id="msg-status-container" class="msg-status"><i class="fas fa-info-circle"></i> <span id="msg-status-text"></span></div> <div class="main-grid"> <div class="panel status-panel"> <h2 data-text="System Status"><i class="fas fa-heartbeat"></i> System Status</h2> <div class="bot-status-container"> <div class="status-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;"> <div class="status-row"><span class="status-label"><i class="fas fa-cogs"></i> Auto Work</span><div><span id="work-timer" class="timer-display">--:--:--</span> <span id="work-status-badge" class="status-badge inactive">OFF</span></div></div> <div class="status-row"><span class="status-label"><i class="fas fa-calendar-check"></i> Auto Daily</span><div><span id="daily-timer" class="timer-display">--:--:--</span> <span id="daily-status-badge" class="status-badge inactive">OFF</span></div></div> <div class="status-row"><span class="status-label"><i class="fas fa-gem"></i> Auto KVI</span><div><span id="kvi-timer" class="timer-display">--:--:--</span> <span id="kvi-status-badge" class="status-badge inactive">OFF</span></div></div> <div class="status-row"><span class="status-label"><i class="fas fa-broadcast-tower"></i> Auto Spam</span><div><span id="spam-timer" class="timer-display">--:--:--</span><span id="spam-status-badge" class="status-badge inactive">OFF</span></div></div> <div class="status-row"><span class="status-label"><i class="fas fa-redo"></i> Auto Reboot</span><div><span id="reboot-timer" class="timer-display">--:--:--</span> <span id="reboot-status-badge" class="status-badge inactive">OFF</span></div></div> <div class="status-row"><span class="status-label"><i class="fas fa-server"></i> Deep Uptime</span><div><span id="uptime-timer" class="timer-display">--:--:--</span></div></div> </div> <div id="bot-status-list" class="bot-status-grid"></div> </div> </div> <div class="panel blood-panel"> <h2 data-text="Soul Harvest"><i class="fas fa-crosshairs"></i> Soul Harvest</h2> <div class="grab-section"><h3>ALPHA NODE <span id="harvest-status-1" class="status-badge"></span></h3><div class="input-group"><input type="number" id="heart-threshold-1" value="{{ heart_threshold }}" min="0"><button type="button" id="harvest-toggle-1" class="btn"></button></div></div> <div class="grab-section"><h3>BETA NODE <span id="harvest-status-2" class="status-badge"></span></h3><div class="input-group"><input type="number" id="heart-threshold-2" value="{{ heart_threshold_2 }}" min="0"><button type="button" id="harvest-toggle-2" class="btn"></button></div></div> <div class="grab-section"><h3>GAMMA NODE <span id="harvest-status-3" class="status-badge"></span></h3><div class="input-group"><input type="number" id="heart-threshold-3" value="{{ heart_threshold_3 }}" min="0"><button type="button" id="harvest-toggle-3" class="btn"></button></div></div> </div> <div class="panel ops-panel"> <h2 data-text="Manual Operations"><i class="fas fa-keyboard"></i> Manual Operations</h2> <div style="display: flex; flex-direction: column; gap: 15px;"> <div class="input-group"><input type="text" id="manual-message-input" placeholder="Enter manual message for slaves..." style="border-radius: 5px;"><button type="button" id="send-manual-message-btn" class="btn" style="flex-shrink: 0; border-color: var(--neon-yellow, #fff000); color: var(--neon-yellow, #fff000);">SEND</button></div> <div id="quick-cmd-container" class="quick-cmd-grid"> <button type="button" data-cmd="kc o:w" class="btn">KC O:W</button><button type="button" data-cmd="kc o:ef" class="btn">KC O:EF</button><button type="button" data-cmd="kc o:p" class="btn">KC O:P</button> <button type="button" data-cmd="kc e:1" class="btn">KC E:1</button><button type="button" data-cmd="kc e:2" class="btn">KC E:2</button><button type="button" data-cmd="kc e:3" class="btn">KC E:3</button> <button type="button" data-cmd="kc e:4" class="btn">KC E:4</button><button type="button" data-cmd="kc e:5" class="btn">KC E:5</button><button type="button" data-cmd="kc e:6" class="btn">KC E:6</button> <button type="button" data-cmd="kc e:7" class="btn">KC E:7</button> </div> </div> </div> <div class="panel code-panel"> <h2 data-text="Code Injection"><i class="fas fa-code"></i> Code Injection</h2> <div class="input-group"><label>Target</label><select id="inject-acc-index">{{ acc_options|safe }}</select></div> <div class="input-group"><label>Prefix</label><input type="text" id="inject-prefix" placeholder="e.g. kt n"></div> <div class="input-group"><label>Delay</label><input type="number" id="inject-delay" value="1.0" step="0.1"></div> <div class="input-group" style="flex-direction: column; align-items: stretch;"><label style="border-radius: 5px 5px 0 0; border-bottom: none;">Code List (comma-separated)</label><textarea id="inject-codes" placeholder="paste codes here, separated by commas" rows="3" style="border-radius: 0 0 5px 5px;"></textarea></div> <button type="button" id="inject-codes-btn" class="btn btn-primary" style="width: 100%; margin-top:10px;">Inject Codes</button> </div> <div class="panel void-panel"> <h2 data-text="Shadow Labor"><i class="fas fa-cogs"></i> Shadow Labor</h2> <h3 style="text-align:center; font-family: 'Orbitron'; margin-bottom: 10px; color: var(--text-secondary);">AUTO WORK</h3> <div class="input-group"><label>Node Delay</label><input type="number" id="work-delay-between-acc" value="{{ work_delay_between_acc }}"></div> <div class="input-group"><label>Cycle Delay</label><input type="number" id="work-delay-after-all" value="{{ work_delay_after_all }}"></div> <button type="button" id="auto-work-toggle-btn" class="btn" style="width:100%;">WORK</button> <hr style="border-color: var(--border-color); margin: 25px 0;"> <h3 style="text-align:center; font-family: 'Orbitron'; margin-bottom: 10px; color: var(--text-secondary);">DAILY RITUAL</h3> <div class="input-group"><label>Node Delay</label><input type="number" id="daily-delay-between-acc" value="{{ daily_delay_between_acc }}"></div> <div class="input-group"><label>Cycle Delay</label><input type="number" id="daily-delay-after-all" value="{{ daily_delay_after_all }}"></div> <button type="button" id="auto-daily-toggle-btn" class="btn" style="width:100%;">DAILY</button> </div> <div class="panel necro-panel"> <h2 data-text="Shadow Resurrection"><i class="fas fa-skull"></i> Shadow Resurrection</h2> <div class="input-group"><label>Interval (s)</label><input type="number" id="auto-reboot-delay" value="{{ auto_reboot_delay }}"></div> <button type="button" id="auto-reboot-toggle-btn" class="btn" style="width:100%;">AUTO REBOOT</button> <hr style="border-color: var(--border-color); margin: 20px 0;"> <h3 style="text-align:center; font-family: 'Orbitron';">MANUAL OVERRIDE</h3> <div id="reboot-grid-container" class="reboot-grid" style="margin-top: 15px;"> <button type="button" data-reboot-target="main_1" class="btn btn-necro btn-sm">ALPHA</button> <button type="button" data-reboot-target="main_2" class="btn btn-necro btn-sm">BETA</button> <button type="button" data-reboot-target="main_3" class="btn btn-necro btn-sm">GAMMA</button> {{ sub_account_buttons|safe }} </div> <button type="button" id="reboot-all-btn" class="btn btn-blood" style="width:100%; margin-top: 15px;">REBOOT ALL SYSTEMS</button> </div> <div class="panel dark-panel"> <h2 data-text="Shadow Broadcast"><i class="fas fa-broadcast-tower"></i> Shadow Broadcast</h2> <h3 style="text-align:center; font-family: 'Orbitron'; margin-bottom: 10px; color: var(--text-secondary);">AUTO SPAM</h3> <div class="input-group"> <label>Target</label> <select id="spam-target"> <option value="all">All Accounts</option> <option value="main">Main Accounts</option> <option value="sub">Sub Accounts</option> </select> </div> <div class="input-group"><label>Message</label><textarea id="spam-message" rows="2">{{ spam_message }}</textarea></div> <div class="input-group"><label>Delay (s)</label><input type="number" id="spam-delay" value="{{ spam_delay }}"></div> <button type="button" id="spam-toggle-btn" class="btn" style="width:100%;">SPAM</button> <hr style="border-color: var(--border-color); margin: 25px 0;"> <h3 style="text-align:center; font-family: 'Orbitron'; margin-bottom: 10px; color: var(--text-secondary);">AUTO KVI (MAIN ACC 1)</h3> <div class="input-group"><label>Clicks</label><input type="number" id="kvi-click-count" value="{{ kvi_click_count }}"></div> <div class="input-group"><label>Click Delay</label><input type="number" id="kvi-click-delay" value="{{ kvi_click_delay }}"></div> <div class="input-group"><label>Cycle Delay</label><input type="number" id="kvi-loop-delay" value="{{ kvi_loop_delay }}"></div> <button type="button" id="auto-kvi-toggle-btn" class="btn" style="width:100%;">KVI</button> </div> </div> </div>
 <script>
-    // Javascript section is complex but appears functionally correct, no changes needed here.
     document.addEventListener('DOMContentLoaded', function () {
         function initGlitches() {
             document.querySelectorAll('.panel h2').forEach(header => {
@@ -803,8 +703,6 @@ HTML_TEMPLATE = """
                         node.remove();
                     }
                 });
-
-
             } catch (error) { console.error('Error fetching status:', error); }
         }
         setInterval(fetchStatus, 1000);
@@ -849,160 +747,172 @@ HTML_TEMPLATE = """
         });
     });
 </script>
-</body>
-</html>
+</body> </html>
 """
 
 @app.route("/")
 def index():
     with bots_lock:
         num_sub_bots = len(bots)
-    acc_options_list = [f'<option value="sub_{i}">{name}</option>' for i, name in enumerate(acc_names[:num_sub_bots])]
-    if main_token: acc_options_list.append('<option value="main_1">ALPHA NODE (Main)</option>')
-    if main_token_2: acc_options_list.append('<option value="main_2">BETA NODE (Main)</option>')
-    if main_token_3: acc_options_list.append('<option value="main_3">GAMMA NODE (Main)</option>')
-    acc_options = "".join(acc_options_list)
-    sub_account_buttons = "".join(f'<button type="button" data-reboot-target="sub_{i}" class="btn btn-necro btn-sm">{name}</button>' for i, name in enumerate(acc_names[:num_sub_bots]))
-    
+        acc_options_list = [f'<option value="sub_{i}">{name}</option>' for i, name in enumerate(acc_names[:num_sub_bots])]
+        if main_token: acc_options_list.append('<option value="main_1">ALPHA NODE (Main)</option>')
+        if main_token_2: acc_options_list.append('<option value="main_2">BETA NODE (Main)</option>')
+        if main_token_3: acc_options_list.append('<option value="main_3">GAMMA NODE (Main)</option>')
+        acc_options = "".join(acc_options_list)
+        sub_account_buttons = "".join(f'<button type="button" data-reboot-target="sub_{i}" class="btn btn-necro btn-sm">{name}</button>' for i, name in enumerate(acc_names[:num_sub_bots]))
+        
+        # Lấy giá trị khởi tạo an toàn
+        init_spam_message = spam_message
+        init_spam_delay = spam_delay
+        init_spam_target = spam_target
+        init_work_delay_b = work_delay_between_acc
+        init_work_delay_a = work_delay_after_all
+        init_daily_delay_b = daily_delay_between_acc
+        init_daily_delay_a = daily_delay_after_all
+        init_kvi_clicks = kvi_click_count
+        init_kvi_click_delay = kvi_click_delay
+        init_kvi_loop_delay = kvi_loop_delay
+        init_reboot_delay = auto_reboot_delay
+        init_heart_1, init_heart_2, init_heart_3 = heart_threshold, heart_threshold_2, heart_threshold_3
+
     return render_template_string(HTML_TEMPLATE,
-        heart_threshold=heart_threshold, heart_threshold_2=heart_threshold_2, heart_threshold_3=heart_threshold_3,
-        spam_message=spam_message, spam_delay=spam_delay, spam_target=spam_target,
-        work_delay_between_acc=work_delay_between_acc, work_delay_after_all=work_delay_after_all,
-        daily_delay_between_acc=daily_delay_between_acc, daily_delay_after_all=daily_delay_after_all,
-        kvi_click_count=kvi_click_count, kvi_click_delay=kvi_click_delay, kvi_loop_delay=kvi_loop_delay,
-        auto_reboot_delay=auto_reboot_delay, acc_options=acc_options, sub_account_buttons=sub_account_buttons
+        heart_threshold=init_heart_1, heart_threshold_2=init_heart_2, heart_threshold_3=init_heart_3,
+        spam_message=init_spam_message, spam_delay=init_spam_delay, spam_target=init_spam_target,
+        work_delay_between_acc=init_work_delay_b, work_delay_after_all=init_work_delay_a,
+        daily_delay_between_acc=init_daily_delay_b, daily_delay_after_all=init_daily_delay_a,
+        kvi_click_count=init_kvi_clicks, kvi_click_delay=init_kvi_click_delay, kvi_loop_delay=init_kvi_loop_delay,
+        auto_reboot_delay=init_reboot_delay, acc_options=acc_options, sub_account_buttons=sub_account_buttons
     )
 
 @app.route("/status")
 def status():
-    now = time.time()
-    work_countdown = (last_work_cycle_time + work_delay_after_all - now) if auto_work_enabled else 0
-    daily_countdown = (last_daily_cycle_time + daily_delay_after_all - now) if auto_daily_enabled else 0
-    kvi_countdown = (last_kvi_cycle_time + kvi_loop_delay - now) if auto_kvi_enabled else 0
-    reboot_countdown = (last_reboot_cycle_time + auto_reboot_delay - now) if auto_reboot_enabled else 0
-    spam_countdown = (last_spam_time + spam_delay - now) if spam_enabled else 0
-    
     with bots_lock:
-        bot_statuses = {
-            "main_bots": [],
-            "sub_accounts": [
-                {"name": acc_names[i] if i < len(acc_names) else f"Sub {i+1}", "status": bot is not None, "reboot_id": f"sub_{i}", "is_active": bot_active_states.get(f'sub_{i}', False), "type": "sub"}
-                for i, bot in enumerate(bots)
-            ]
+        data = {
+            'work_enabled': auto_work_enabled,
+            'daily_enabled': auto_daily_enabled,
+            'kvi_enabled': auto_kvi_enabled,
+            'reboot_enabled': auto_reboot_enabled,
+            'spam_enabled': spam_enabled,
+            'spam_target': spam_target,
+            'server_start_time': server_start_time,
+            'work_countdown': (last_work_cycle_time + work_delay_after_all - time.time()) if auto_work_enabled else 0,
+            'daily_countdown': (last_daily_cycle_time + daily_delay_after_all - time.time()) if auto_daily_enabled else 0,
+            'kvi_countdown': (last_kvi_cycle_time + kvi_loop_delay - time.time()) if auto_kvi_enabled else 0,
+            'reboot_countdown': (last_reboot_cycle_time + auto_reboot_delay - time.time()) if auto_reboot_enabled else 0,
+            'spam_countdown': (last_spam_time + spam_delay - time.time()) if spam_enabled else 0,
+            'bot_statuses': {
+                "main_bots": [],
+                "sub_accounts": [{"name": acc_names[i] if i < len(acc_names) else f"Sub {i+1}", "status": bot is not None, "reboot_id": f"sub_{i}", "is_active": bot_active_states.get(f'sub_{i}', False), "type": "sub"} for i, bot in enumerate(bots)]
+            },
+            'ui_states': {
+                "grab_status": "active" if auto_grab_enabled else "inactive", "grab_text": "ON" if auto_grab_enabled else "OFF", "grab_action": "DISABLE" if auto_grab_enabled else "ENABLE", "grab_button_class": "btn-blood" if auto_grab_enabled else "btn-necro",
+                "grab_status_2": "active" if auto_grab_enabled_2 else "inactive", "grab_text_2": "ON" if auto_grab_enabled_2 else "OFF", "grab_action_2": "DISABLE" if auto_grab_enabled_2 else "ENABLE", "grab_button_class_2": "btn-blood" if auto_grab_enabled_2 else "btn-necro",
+                "grab_status_3": "active" if auto_grab_enabled_3 else "inactive", "grab_text_3": "ON" if auto_grab_enabled_3 else "OFF", "grab_action_3": "DISABLE" if auto_grab_enabled_3 else "ENABLE", "grab_button_class_3": "btn-blood" if auto_grab_enabled_3 else "btn-necro",
+                "spam_action": "DISABLE" if spam_enabled else "ENABLE", "spam_button_class": "btn-blood" if spam_enabled else "btn-necro",
+                "work_action": "DISABLE" if auto_work_enabled else "ENABLE", "work_button_class": "btn-blood" if auto_work_enabled else "btn-necro",
+                "daily_action": "DISABLE" if auto_daily_enabled else "ENABLE", "daily_button_class": "btn-blood" if auto_daily_enabled else "btn-necro",
+                "kvi_action": "DISABLE" if auto_kvi_enabled else "ENABLE", "kvi_button_class": "btn-blood" if auto_kvi_enabled else "btn-necro",
+                "reboot_action": "DISABLE" if auto_reboot_enabled else "ENABLE", "reboot_button_class": "btn-blood" if auto_reboot_enabled else "btn-necro",
+            }
         }
-        if main_token: bot_statuses["main_bots"].append({"name": "ALPHA", "status": main_bot is not None, "reboot_id": "main_1", "is_active": bot_active_states.get('main_1', False), "type": "main"})
-        if main_token_2: bot_statuses["main_bots"].append({"name": "BETA", "status": main_bot_2 is not None, "reboot_id": "main_2", "is_active": bot_active_states.get('main_2', False), "type": "main"})
-        if main_token_3: bot_statuses["main_bots"].append({"name": "GAMMA", "status": main_bot_3 is not None, "reboot_id": "main_3", "is_active": bot_active_states.get('main_3', False), "type": "main"})
-    
-    ui_states = {
-        "grab_status": "active" if auto_grab_enabled else "inactive", "grab_text": "ON" if auto_grab_enabled else "OFF", "grab_action": "DISABLE" if auto_grab_enabled else "ENABLE", "grab_button_class": "btn-blood" if auto_grab_enabled else "btn-necro",
-        "grab_status_2": "active" if auto_grab_enabled_2 else "inactive", "grab_text_2": "ON" if auto_grab_enabled_2 else "OFF", "grab_action_2": "DISABLE" if auto_grab_enabled_2 else "ENABLE", "grab_button_class_2": "btn-blood" if auto_grab_enabled_2 else "btn-necro",
-        "grab_status_3": "active" if auto_grab_enabled_3 else "inactive", "grab_text_3": "ON" if auto_grab_enabled_3 else "OFF", "grab_action_3": "DISABLE" if auto_grab_enabled_3 else "ENABLE", "grab_button_class_3": "btn-blood" if auto_grab_enabled_3 else "btn-necro",
-        "spam_action": "DISABLE" if spam_enabled else "ENABLE", "spam_button_class": "btn-blood" if spam_enabled else "btn-necro",
-        "work_action": "DISABLE" if auto_work_enabled else "ENABLE", "work_button_class": "btn-blood" if auto_work_enabled else "btn-necro",
-        "daily_action": "DISABLE" if auto_daily_enabled else "ENABLE", "daily_button_class": "btn-blood" if auto_daily_enabled else "btn-necro",
-        "kvi_action": "DISABLE" if auto_kvi_enabled else "ENABLE", "kvi_button_class": "btn-blood" if auto_kvi_enabled else "btn-necro",
-        "reboot_action": "DISABLE" if auto_reboot_enabled else "ENABLE", "reboot_button_class": "btn-blood" if auto_reboot_enabled else "btn-necro",
-    }
+        if main_token: data["bot_statuses"]["main_bots"].append({"name": "ALPHA", "status": main_bot is not None, "reboot_id": "main_1", "is_active": bot_active_states.get('main_1', False), "type": "main"})
+        if main_token_2: data["bot_statuses"]["main_bots"].append({"name": "BETA", "status": main_bot_2 is not None, "reboot_id": "main_2", "is_active": bot_active_states.get('main_2', False), "type": "main"})
+        if main_token_3: data["bot_statuses"]["main_bots"].append({"name": "GAMMA", "status": main_bot_3 is not None, "reboot_id": "main_3", "is_active": bot_active_states.get('main_3', False), "type": "main"})
+    return jsonify(data)
 
-    return jsonify({
-        'work_enabled': auto_work_enabled, 'work_countdown': work_countdown,
-        'daily_enabled': auto_daily_enabled, 'daily_countdown': daily_countdown,
-        'kvi_enabled': auto_kvi_enabled, 'kvi_countdown': kvi_countdown,
-        'reboot_enabled': auto_reboot_enabled, 'reboot_countdown': reboot_countdown,
-        'spam_enabled': spam_enabled, 'spam_countdown': spam_countdown,
-        'spam_target': spam_target,
-        'bot_statuses': bot_statuses,
-        'server_start_time': server_start_time,
-        'ui_states': ui_states
-    })
-
-# --- API Endpoints ---
 @app.route("/api/toggle/harvest", methods=['POST'])
 def api_toggle_harvest():
-    global auto_grab_enabled, heart_threshold, auto_grab_enabled_2, heart_threshold_2, auto_grab_enabled_3, heart_threshold_3
     data = request.get_json()
     node = data.get('node')
     threshold = int(data.get('threshold', 50))
     msg = ""
-    if node == 1:
-        auto_grab_enabled = not auto_grab_enabled
-        heart_threshold = threshold
-        msg = f"Auto Grab 1 was {'ENABLED' if auto_grab_enabled else 'DISABLED'}"
-    elif node == 2:
-        auto_grab_enabled_2 = not auto_grab_enabled_2
-        heart_threshold_2 = threshold
-        msg = f"Auto Grab 2 was {'ENABLED' if auto_grab_enabled_2 else 'DISABLED'}"
-    elif node == 3:
-        auto_grab_enabled_3 = not auto_grab_enabled_3
-        heart_threshold_3 = threshold
-        msg = f"Auto Grab 3 was {'ENABLED' if auto_grab_enabled_3 else 'DISABLED'}"
+    with bots_lock:
+        if node == 1:
+            global auto_grab_enabled, heart_threshold
+            auto_grab_enabled = not auto_grab_enabled
+            heart_threshold = threshold
+            msg = f"Auto Grab 1 was {'ENABLED' if auto_grab_enabled else 'DISABLED'}"
+        elif node == 2:
+            global auto_grab_enabled_2, heart_threshold_2
+            auto_grab_enabled_2 = not auto_grab_enabled_2
+            heart_threshold_2 = threshold
+            msg = f"Auto Grab 2 was {'ENABLED' if auto_grab_enabled_2 else 'DISABLED'}"
+        elif node == 3:
+            global auto_grab_enabled_3, heart_threshold_3
+            auto_grab_enabled_3 = not auto_grab_enabled_3
+            heart_threshold_3 = threshold
+            msg = f"Auto Grab 3 was {'ENABLED' if auto_grab_enabled_3 else 'DISABLED'}"
     return jsonify({'status': 'success', 'message': msg})
 
 @app.route("/api/toggle/work", methods=['POST'])
 def api_toggle_work():
     global auto_work_enabled, work_delay_between_acc, work_delay_after_all, last_work_cycle_time
     data = request.get_json()
-    auto_work_enabled = not auto_work_enabled
-    if auto_work_enabled: 
-        last_work_cycle_time = time.time()
-        work_delay_between_acc = int(data.get('delay_between', 10))
-        work_delay_after_all = int(data.get('delay_after', 44100))
-    msg = f"Auto Work {'ENABLED' if auto_work_enabled else 'DISABLED'}."
+    with bots_lock:
+        auto_work_enabled = not auto_work_enabled
+        if auto_work_enabled: 
+            last_work_cycle_time = time.time()
+            work_delay_between_acc = int(data.get('delay_between', 10))
+            work_delay_after_all = int(data.get('delay_after', 44100))
+        msg = f"Auto Work {'ENABLED' if auto_work_enabled else 'DISABLED'}."
     return jsonify({'status': 'success', 'message': msg})
 
 @app.route("/api/toggle/daily", methods=['POST'])
 def api_toggle_daily():
     global auto_daily_enabled, daily_delay_between_acc, daily_delay_after_all, last_daily_cycle_time
     data = request.get_json()
-    auto_daily_enabled = not auto_daily_enabled
-    if auto_daily_enabled:
-        last_daily_cycle_time = time.time()
-        daily_delay_between_acc = int(data.get('delay_between', 3))
-        daily_delay_after_all = int(data.get('delay_after', 87000))
-    msg = f"Auto Daily {'ENABLED' if auto_daily_enabled else 'DISABLED'}."
+    with bots_lock:
+        auto_daily_enabled = not auto_daily_enabled
+        if auto_daily_enabled:
+            last_daily_cycle_time = time.time()
+            daily_delay_between_acc = int(data.get('delay_between', 3))
+            daily_delay_after_all = int(data.get('delay_after', 87000))
+        msg = f"Auto Daily {'ENABLED' if auto_daily_enabled else 'DISABLED'}."
     return jsonify({'status': 'success', 'message': msg})
 
 @app.route("/api/toggle/reboot", methods=['POST'])
 def api_toggle_reboot():
     global auto_reboot_enabled, auto_reboot_delay, last_reboot_cycle_time
     data = request.get_json()
-    auto_reboot_enabled = not auto_reboot_enabled
-    if auto_reboot_enabled:
-        last_reboot_cycle_time = time.time()
-        auto_reboot_delay = int(data.get("delay", 3600))
-    msg = f"Auto Reboot {'ENABLED' if auto_reboot_enabled else 'DISABLED'}."
+    with bots_lock:
+        auto_reboot_enabled = not auto_reboot_enabled
+        if auto_reboot_enabled:
+            last_reboot_cycle_time = time.time()
+            auto_reboot_delay = int(data.get("delay", 3600))
+        msg = f"Auto Reboot {'ENABLED' if auto_reboot_enabled else 'DISABLED'}."
     return jsonify({'status': 'success', 'message': msg})
 
 @app.route("/api/toggle/spam", methods=['POST'])
 def api_toggle_spam():
     global spam_enabled, spam_message, spam_delay, last_spam_time, spam_target
     data = request.get_json()
-    spam_enabled = not spam_enabled
-    if spam_enabled:
-        spam_message = data.get("message", "").strip()
-        if not spam_message:
-            spam_enabled = False
-            return jsonify({'status': 'error', 'message': 'Spam message cannot be empty.'})
-        spam_delay = int(data.get("delay", 10))
-        spam_target = data.get("target", "all")
-        last_spam_time = time.time()
-        msg = f"Spam ENABLED (Target: {spam_target.upper()})."
-    else:
-        msg = "Spam DISABLED."
+    with bots_lock:
+        spam_enabled = not spam_enabled
+        if spam_enabled:
+            spam_message = data.get("message", "").strip()
+            if not spam_message:
+                spam_enabled = False
+                return jsonify({'status': 'error', 'message': 'Spam message cannot be empty.'})
+            spam_delay = int(data.get("delay", 10))
+            spam_target = data.get("target", "all")
+            last_spam_time = time.time()
+            msg = f"Spam ENABLED (Target: {spam_target.upper()})."
+        else:
+            msg = "Spam DISABLED."
     return jsonify({'status': 'success', 'message': msg})
 
 @app.route("/api/toggle/kvi", methods=['POST'])
 def api_toggle_kvi():
     global auto_kvi_enabled, kvi_click_count, kvi_click_delay, kvi_loop_delay, last_kvi_cycle_time
     data = request.get_json()
-    auto_kvi_enabled = not auto_kvi_enabled
-    if auto_kvi_enabled:
-        last_kvi_cycle_time = time.time()
-        kvi_click_count = int(data.get('clicks', 10))
-        kvi_click_delay = int(data.get('click_delay', 3))
-        kvi_loop_delay = int(data.get('loop_delay', 7500))
-    msg = f"Auto KVI {'ENABLED' if auto_kvi_enabled else 'DISABLED'}."
+    with bots_lock:
+        auto_kvi_enabled = not auto_kvi_enabled
+        if auto_kvi_enabled:
+            last_kvi_cycle_time = time.time()
+            kvi_click_count = int(data.get('clicks', 10))
+            kvi_click_delay = int(data.get('click_delay', 3))
+            kvi_loop_delay = int(data.get('loop_delay', 7500))
+        msg = f"Auto KVI {'ENABLED' if auto_kvi_enabled else 'DISABLED'}."
     return jsonify({'status': 'success', 'message': msg})
 
 @app.route("/api/manual_ops", methods=['POST'])
@@ -1016,12 +926,11 @@ def api_manual_ops():
 
     bots_to_send_from = []
     with bots_lock:
-        # <<< SỬA LỖI 3: Phân biệt đối tượng gửi tin >>
-        if manual_message: # Gửi từ các bot phụ (slaves)
+        if manual_message:
             bots_to_send_from = [b for i, b in enumerate(bots) if b and bot_active_states.get(f'sub_{i}', False)]
             msg_to_send = manual_message
             target_desc = f"{len(bots_to_send_from)} active sub account(s)"
-        elif quick_message: # Gửi từ TẤT CẢ các bot đang hoạt động
+        elif quick_message:
             if main_bot and bot_active_states.get('main_1', False): bots_to_send_from.append(main_bot)
             if main_bot_2 and bot_active_states.get('main_2', False): bots_to_send_from.append(main_bot_2)
             if main_bot_3 and bot_active_states.get('main_3', False): bots_to_send_from.append(main_bot_3)
@@ -1033,7 +942,10 @@ def api_manual_ops():
         return jsonify({'status': 'error', 'message': 'No active bots for this operation.'})
 
     for idx, bot in enumerate(bots_to_send_from):
-        threading.Timer(0.2 * idx, bot.sendMessage, args=(other_channel_id, msg_to_send)).start()
+        try:
+            threading.Timer(0.2 * idx, bot.sendMessage, args=(other_channel_id, msg_to_send)).start()
+        except Exception as e:
+            print(f"[ERROR] Lỗi gửi tin nhắn thủ công: {e}")
         
     msg = f"Sent '{msg_to_send}' from {target_desc}."
     return jsonify({'status': 'success', 'message': msg})
@@ -1047,7 +959,6 @@ def api_inject_codes():
         
         target_bot, target_name = None, ""
         with bots_lock:
-            # Logic này đã đúng, không cần sửa
             if target_id_str == 'main_1': target_bot, target_name = main_bot, "ALPHA"
             elif target_id_str == 'main_2': target_bot, target_name = main_bot_2, "BETA"
             elif target_id_str == 'main_3': target_bot, target_name = main_bot_3, "GAMMA"
@@ -1069,7 +980,6 @@ def api_reboot_manual():
     target = request.get_json().get('target')
     if not target:
         return jsonify({'status': 'error', 'message': 'No target specified.'})
-
     msg = f"Rebooting target: {target.upper()}"
     if target == "all":
         threading.Thread(target=lambda: (
@@ -1080,14 +990,12 @@ def api_reboot_manual():
         )).start()
     else:
         threading.Thread(target=reboot_bot, args=(target,)).start()
-        
     return jsonify({'status': 'success', 'message': msg})
 
 @app.route("/api/toggle_bot_state", methods=['POST'])
 def api_toggle_bot_state():
     target = request.get_json().get('target')
     msg = "Invalid target."
-    # <<< SỬA LỖI 1: Thêm lock để tránh race condition >>
     with bots_lock:
         if target in bot_active_states:
             bot_active_states[target] = not bot_active_states[target]
