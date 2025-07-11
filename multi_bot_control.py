@@ -1,4 +1,3 @@
-# multi_bot_control_classy_theme.py
 import discum
 import threading
 import time
