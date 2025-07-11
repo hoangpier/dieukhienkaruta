@@ -30,8 +30,8 @@ auto_grab_enabled, auto_grab_enabled_2, auto_grab_enabled_3 = False, False, Fals
 heart_threshold, heart_threshold_2, heart_threshold_3 = 50, 50, 50
 last_drop_msg_id = ""
 acc_names = ["accphu1","accphu2","accphu3","accphu4","accphu5","accphu6","accphu7","accphu8","accphu9","accphu10","accphu11","accphu12"]
-spam_enabled, spam_message, spam_delay, spam_channel_id = False, "", 10, "1389525697084526592"
-auto_work_enabled, work_channel_id, work_delay_between_acc, work_delay_after_all = False, "1390851619016671246", 10, 44100
+spam_enabled, spam_message, spam_delay, spam_channel_id = False, "", 10, "1392480102687707176"
+auto_work_enabled, work_channel_id, work_delay_between_acc, work_delay_after_all = False, "1392480124905193562", 10, 44100
 
 auto_reboot_enabled = False
 auto_reboot_delay = 3600
