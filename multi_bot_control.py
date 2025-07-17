@@ -193,17 +193,12 @@ def create_bot(token, is_main=False, is_main_2=False, is_main_3=False):
                                 if msg_item.get("author", {}).get("id") == heart_bot_id and "embeds" in msg_item and len(msg_item["embeds"]) > 0:
                                     desc = msg_item["embeds"][0].get("description", "")
                                     lines = desc.split('\n')
-                                    heart_numbers = []
-                                    # CẬP NHẬT LOGIC: Đọc tim theo từng dòng để đảm bảo đúng thứ tự
-                                    for line in lines:
+                                    heart_numbers = [0, 0, 0] # Khởi tạo với 3 vị trí để đảm bảo chỉ mục luôn đúng
+                                    # CẬP NHẬT LOGIC: Đọc tim theo từng dòng để đảm bảo đúng thứ tự và vị trí
+                                    for i, line in enumerate(lines[:3]): # Chỉ xử lý 3 dòng đầu tiên
                                         match = re.search(r'♡\s*(\d+)', line)
                                         if match:
-                                            heart_numbers.append(int(match.group(1)))
-
-                                    # Đảm bảo danh sách có đúng 3 phần tử
-                                    while len(heart_numbers) < 3:
-                                        heart_numbers.append(0)
-                                    heart_numbers = heart_numbers[:3]
+                                            heart_numbers[i] = int(match.group(1))
 
                                     max_num = max(heart_numbers)
                                     if sum(heart_numbers) > 0 and max_num >= heart_threshold:
@@ -234,17 +229,12 @@ def create_bot(token, is_main=False, is_main_2=False, is_main_3=False):
                                 if msg_item.get("author", {}).get("id") == heart_bot_id and "embeds" in msg_item and len(msg_item["embeds"]) > 0:
                                     desc = msg_item["embeds"][0].get("description", "")
                                     lines = desc.split('\n')
-                                    heart_numbers = []
-                                    # CẬP NHẬT LOGIC: Đọc tim theo từng dòng để đảm bảo đúng thứ tự
-                                    for line in lines:
+                                    heart_numbers = [0, 0, 0] # Khởi tạo với 3 vị trí để đảm bảo chỉ mục luôn đúng
+                                    # CẬP NHẬT LOGIC: Đọc tim theo từng dòng để đảm bảo đúng thứ tự và vị trí
+                                    for i, line in enumerate(lines[:3]): # Chỉ xử lý 3 dòng đầu tiên
                                         match = re.search(r'♡\s*(\d+)', line)
                                         if match:
-                                            heart_numbers.append(int(match.group(1)))
-                                            
-                                    # Đảm bảo danh sách có đúng 3 phần tử
-                                    while len(heart_numbers) < 3:
-                                        heart_numbers.append(0)
-                                    heart_numbers = heart_numbers[:3]
+                                            heart_numbers[i] = int(match.group(1))
 
                                     max_num = max(heart_numbers)
                                     if sum(heart_numbers) > 0 and max_num >= heart_threshold_2:
@@ -275,17 +265,12 @@ def create_bot(token, is_main=False, is_main_2=False, is_main_3=False):
                                 if msg_item.get("author", {}).get("id") == heart_bot_id and "embeds" in msg_item and len(msg_item["embeds"]) > 0:
                                     desc = msg_item["embeds"][0].get("description", "")
                                     lines = desc.split('\n')
-                                    heart_numbers = []
-                                    # CẬP NHẬT LOGIC: Đọc tim theo từng dòng để đảm bảo đúng thứ tự
-                                    for line in lines:
+                                    heart_numbers = [0, 0, 0] # Khởi tạo với 3 vị trí để đảm bảo chỉ mục luôn đúng
+                                    # CẬP NHẬT LOGIC: Đọc tim theo từng dòng để đảm bảo đúng thứ tự và vị trí
+                                    for i, line in enumerate(lines[:3]): # Chỉ xử lý 3 dòng đầu tiên
                                         match = re.search(r'♡\s*(\d+)', line)
                                         if match:
-                                            heart_numbers.append(int(match.group(1)))
-
-                                    # Đảm bảo danh sách có đúng 3 phần tử
-                                    while len(heart_numbers) < 3:
-                                        heart_numbers.append(0)
-                                    heart_numbers = heart_numbers[:3]
+                                            heart_numbers[i] = int(match.group(1))
 
                                     max_num = max(heart_numbers)
                                     if sum(heart_numbers) > 0 and max_num >= heart_threshold_3:
