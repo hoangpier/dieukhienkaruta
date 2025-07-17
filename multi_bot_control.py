@@ -192,10 +192,15 @@ def create_bot(token, is_main=False, is_main_2=False, is_main_3=False):
                             for msg_item in messages:
                                 if msg_item.get("author", {}).get("id") == heart_bot_id and "embeds" in msg_item and len(msg_item["embeds"]) > 0:
                                     desc = msg_item["embeds"][0].get("description", "")
-                                    # THAY ĐỔI: Phân tích định dạng mới "| ♡0 ... | ♡1 ... | ♡1 ..."
-                                    matches = re.findall(r'♡(\d+)', desc)
-                                    heart_numbers = [int(num) for num in matches]
-                                    # Đảm bảo danh sách có đúng 3 phần tử để phù hợp với logic chọn emoji
+                                    lines = desc.split('\n')
+                                    heart_numbers = []
+                                    # CẬP NHẬT LOGIC: Đọc tim theo từng dòng để đảm bảo đúng thứ tự
+                                    for line in lines:
+                                        match = re.search(r'♡\s*(\d+)', line)
+                                        if match:
+                                            heart_numbers.append(int(match.group(1)))
+
+                                    # Đảm bảo danh sách có đúng 3 phần tử
                                     while len(heart_numbers) < 3:
                                         heart_numbers.append(0)
                                     heart_numbers = heart_numbers[:3]
@@ -228,10 +233,15 @@ def create_bot(token, is_main=False, is_main_2=False, is_main_3=False):
                             for msg_item in messages:
                                 if msg_item.get("author", {}).get("id") == heart_bot_id and "embeds" in msg_item and len(msg_item["embeds"]) > 0:
                                     desc = msg_item["embeds"][0].get("description", "")
-                                    # THAY ĐỔI: Phân tích định dạng mới "| ♡0 ... | ♡1 ... | ♡1 ..."
-                                    matches = re.findall(r'♡(\d+)', desc)
-                                    heart_numbers = [int(num) for num in matches]
-                                    # Đảm bảo danh sách có đúng 3 phần tử để phù hợp với logic chọn emoji
+                                    lines = desc.split('\n')
+                                    heart_numbers = []
+                                    # CẬP NHẬT LOGIC: Đọc tim theo từng dòng để đảm bảo đúng thứ tự
+                                    for line in lines:
+                                        match = re.search(r'♡\s*(\d+)', line)
+                                        if match:
+                                            heart_numbers.append(int(match.group(1)))
+                                            
+                                    # Đảm bảo danh sách có đúng 3 phần tử
                                     while len(heart_numbers) < 3:
                                         heart_numbers.append(0)
                                     heart_numbers = heart_numbers[:3]
@@ -264,10 +274,15 @@ def create_bot(token, is_main=False, is_main_2=False, is_main_3=False):
                             for msg_item in messages:
                                 if msg_item.get("author", {}).get("id") == heart_bot_id and "embeds" in msg_item and len(msg_item["embeds"]) > 0:
                                     desc = msg_item["embeds"][0].get("description", "")
-                                    # THAY ĐỔI: Phân tích định dạng mới "| ♡0 ... | ♡1 ... | ♡1 ..."
-                                    matches = re.findall(r'♡(\d+)', desc)
-                                    heart_numbers = [int(num) for num in matches]
-                                    # Đảm bảo danh sách có đúng 3 phần tử để phù hợp với logic chọn emoji
+                                    lines = desc.split('\n')
+                                    heart_numbers = []
+                                    # CẬP NHẬT LOGIC: Đọc tim theo từng dòng để đảm bảo đúng thứ tự
+                                    for line in lines:
+                                        match = re.search(r'♡\s*(\d+)', line)
+                                        if match:
+                                            heart_numbers.append(int(match.group(1)))
+
+                                    # Đảm bảo danh sách có đúng 3 phần tử
                                     while len(heart_numbers) < 3:
                                         heart_numbers.append(0)
                                     heart_numbers = heart_numbers[:3]
